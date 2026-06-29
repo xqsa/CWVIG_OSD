@@ -50,6 +50,8 @@ target_compile_features(flyki_core PUBLIC cxx_std_11)
 add_library(probe_core STATIC
     probe/BenchmarkEvaluator.cpp
     probe/BenchmarkEvaluator.h
+    probe/CWVIGEstimator.cpp
+    probe/CWVIGEstimator.h
     probe/FiniteDifferenceProbe.cpp
     probe/FiniteDifferenceProbe.h
     probe/SyntheticFunctions.cpp
@@ -104,6 +106,12 @@ add_executable(probe_smoke_cli
 target_link_libraries(probe_smoke_cli PRIVATE probe_core)
 target_compile_features(probe_smoke_cli PRIVATE cxx_std_17)
 
+add_executable(cwvig_estimator_cli
+    probe/cwvig_estimator_cli.cpp
+)
+target_link_libraries(cwvig_estimator_cli PRIVATE probe_core)
+target_compile_features(cwvig_estimator_cli PRIVATE cxx_std_17)
+
 add_executable(grouping_metrics_tests
     grouping/GroupingMetricsTests.cpp
 )
@@ -133,6 +141,12 @@ add_executable(probe_harness_tests
 )
 target_link_libraries(probe_harness_tests PRIVATE probe_core)
 target_compile_features(probe_harness_tests PRIVATE cxx_std_17)
+
+add_executable(cwvig_estimator_tests
+    probe/CWVIGEstimatorTests.cpp
+)
+target_link_libraries(cwvig_estimator_tests PRIVATE probe_core)
+target_compile_features(cwvig_estimator_tests PRIVATE cxx_std_17)
 
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")

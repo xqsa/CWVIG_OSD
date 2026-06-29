@@ -394,3 +394,61 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files.
 - 推荐下一目标：
   - Add a budgeted interaction-estimation smoke layer that consumes this probe output and writes a small edge/evidence CSV, still without changing optimizer behavior.
+
+## 2026-06-29 - Phase 3B Probabilistic CWVIG Estimator
+
+- 状态：done locally; pushed after verification
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/probe/CWVIGEstimator.h`
+  - `benchmark/flyki_overlap/probe/CWVIGEstimator.cpp`
+  - `benchmark/flyki_overlap/probe/CWVIGEstimatorTests.cpp`
+  - `benchmark/flyki_overlap/probe/cwvig_estimator_cli.cpp`
+  - `docs/cwvig_estimator.md`
+  - `PROGRESS.md`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target cwvig_estimator_tests --config Release`
+  - `cmake --build build/flyki --target cwvig_estimator_cli --config Release`
+  - `cmake --build build/flyki --target probe_harness_tests --config Release`
+  - `cmake --build build/flyki --target cbocco --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\cwvig_estimator_tests.exe`
+  - `.\build\flyki\Release\probe_harness_tests.exe`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode synthetic --synthetic-function sphere --dimension-limit 4 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase3b_sphere_edges.csv`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode synthetic --synthetic-function interaction --dimension-limit 4 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase3b_interaction_edges.csv`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode synthetic --synthetic-function overlap --dimension-limit 3 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase3b_overlap_edges.csv`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode synthetic --synthetic-function overlap --dimension-limit 3 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode quantile --fixed-threshold 0.5 --output .codex\phase3b_overlap_quantile_edges.csv`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode flyki --func 1 --dimension-limit 10 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase3b_flyki_f1_edges.csv`
+- 输出：
+  - `cwvig_estimator_tests`: `CWVIGEstimatorTests passed`
+  - sphere mode: `Edges Written: 6`, `Threshold: 0.5`, `FE Count: 72`; all probabilities in output were `0`
+  - interaction mode: pair `(0,1)` had `mean_abs_normalized=0.9999`, higher than all other pairs
+  - overlap mode: pairs `(0,1)` and `(1,2)` had probability `1`, giving variable `1` higher weighted degree
+  - quantile mode smoke: `Threshold: 1.9998`, `FE Count: 36`
+  - Flyki mode: `Edges Written: 45`, `Threshold: 0.5`, `FE Count: 540`
+  - CSV header: `i,j,mean_abs_raw,mean_abs_normalized,std_normalized,threshold,probability,uncertainty,contexts`
+  - `probe_harness_tests`: `ProbeHarnessTests passed`
+  - `cbocco`: failed only with known missing external CMA-ES files: `cmaes_interface.h`, `boundary_transformation.h`, `CMA-ES implementation source files`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\probe_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\cwvig_estimator_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\cwvig_estimator_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase3b_sphere_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase3b_interaction_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase3b_overlap_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase3b_overlap_quantile_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase3b_flyki_f1_edges.csv`
+  - `docs/cwvig_estimator.md`
+- 关键观察：
+  - Raw and normalized evidence are both stored because finite-difference evidence scales with `delta^2`.
+  - Probability mapping and entropy uncertainty are deterministic for fixed seed and parameters.
+  - The estimator uses the current 4-evaluation `probePair` without baseline reuse, so FE count is `contexts * pairs * 4`.
+  - Flyki probing remains limited to `dimension_limit=10`.
+- 遗留风险：
+  - `SoftOverlapDecomposition`, `Z` learning, and `SharedVariablePolicy` are still intentionally absent.
+  - No full 905D probing is attempted.
+  - Full `cbocco` remains blocked by missing external CMA-ES files.
+- 推荐下一目标：
+  - Add a converter from CWVIG edge CSV to a simple predicted grouping file for toy synthetic cases, still outside optimizer logic.
