@@ -80,6 +80,12 @@ add_executable(cbocco_grouping_loader_cli
 target_link_libraries(cbocco_grouping_loader_cli PRIVATE grouping_core)
 target_compile_features(cbocco_grouping_loader_cli PRIVATE cxx_std_17)
 
+add_executable(grouping_source_cli
+    grouping/grouping_source_cli.cpp
+)
+target_link_libraries(grouping_source_cli PRIVATE grouping_core)
+target_compile_features(grouping_source_cli PRIVATE cxx_std_17)
+
 add_executable(grouping_metrics_tests
     grouping/GroupingMetricsTests.cpp
 )
@@ -97,6 +103,12 @@ add_executable(cbocco_grouping_loader_tests
 )
 target_link_libraries(cbocco_grouping_loader_tests PRIVATE grouping_core)
 target_compile_features(cbocco_grouping_loader_tests PRIVATE cxx_std_17)
+
+add_executable(grouping_source_tests
+    grouping/GroupingSourceTests.cpp
+)
+target_link_libraries(grouping_source_tests PRIVATE grouping_core)
+target_compile_features(grouping_source_tests PRIVATE cxx_std_17)
 
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")

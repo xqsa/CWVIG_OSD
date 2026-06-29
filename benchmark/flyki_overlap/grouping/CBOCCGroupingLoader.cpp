@@ -30,6 +30,30 @@ std::string joinErrors(const std::vector<std::string> &errors)
     return output.str();
 }
 
+LegacyGroupingView loadLegacyGroupingFromPaths(
+    const std::filesystem::path &po_path,
+    const std::filesystem::path &oo_path,
+    const std::string &missing_po_message,
+    const std::string &missing_oo_message,
+    const std::string &validation_message)
+{
+    if (!std::filesystem::exists(po_path)) {
+        throw std::runtime_error(missing_po_message + ": " + po_path.string());
+    }
+    if (!std::filesystem::exists(oo_path)) {
+        throw std::runtime_error(missing_oo_message + ": " + oo_path.string());
+    }
+
+    const auto groups = readPoFile(po_path.string());
+    const auto overlap_groups = readOoFile(oo_path.string());
+    auto view = makeLegacyGroupingView(makeGroupingData(groups, overlap_groups));
+    const auto errors = validateLegacyGroupingView(view);
+    if (!errors.empty()) {
+        throw std::runtime_error(validation_message + ": " + joinErrors(errors));
+    }
+    return view;
+}
+
 }  // namespace
 
 LegacyGroupingView loadLegacyGroupingForFunction(
@@ -42,21 +66,24 @@ LegacyGroupingView loadLegacyGroupingForFunction(
 
     const auto po_path = legacyGroupingPath(benchmark_root, func, "po.txt");
     const auto oo_path = legacyGroupingPath(benchmark_root, func, "oo.txt");
-    if (!std::filesystem::exists(po_path)) {
-        throw std::runtime_error("Missing po file: " + po_path.string());
-    }
-    if (!std::filesystem::exists(oo_path)) {
-        throw std::runtime_error("Missing oo file: " + oo_path.string());
-    }
+    return loadLegacyGroupingFromPaths(
+        po_path,
+        oo_path,
+        "Missing po file",
+        "Missing oo file",
+        "Legacy grouping validation failed");
+}
 
-    const auto groups = readPoFile(po_path.string());
-    const auto overlap_groups = readOoFile(oo_path.string());
-    auto view = makeLegacyGroupingView(makeGroupingData(groups, overlap_groups));
-    const auto errors = validateLegacyGroupingView(view);
-    if (!errors.empty()) {
-        throw std::runtime_error("Legacy grouping validation failed: " + joinErrors(errors));
-    }
-    return view;
+LegacyGroupingView loadLegacyGroupingFromFiles(
+    const std::filesystem::path &po_path,
+    const std::filesystem::path &oo_path)
+{
+    return loadLegacyGroupingFromPaths(
+        po_path,
+        oo_path,
+        "Missing explicit po file",
+        "Missing explicit oo file",
+        "Explicit grouping validation failed");
 }
 
 }  // namespace grouping

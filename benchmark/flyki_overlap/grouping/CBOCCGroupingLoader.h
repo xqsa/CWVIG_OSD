@@ -12,6 +12,10 @@ LegacyGroupingView loadLegacyGroupingForFunction(
     int func,
     const std::filesystem::path &benchmark_root);
 
+LegacyGroupingView loadLegacyGroupingFromFiles(
+    const std::filesystem::path &po_path,
+    const std::filesystem::path &oo_path);
+
 }  // namespace grouping
 }  // namespace flyki
 

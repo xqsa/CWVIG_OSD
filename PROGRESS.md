@@ -280,3 +280,66 @@
   - No CWVIG-OSD grouping source is implemented yet.
 - 推荐下一目标：
   - After CMA-ES is supplied or a compile-only shim is chosen, verify full `cbocco` compilation with the loader seam; then add a method switch for an alternate grouping source without changing `CBCCO` behavior.
+
+## 2026-06-29 - Phase 2C Predicted Grouping Source Support
+
+- 状态：done locally; pushed after verification
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/grouping/CBOCCGroupingLoader.h`
+  - `benchmark/flyki_overlap/grouping/CBOCCGroupingLoader.cpp`
+  - `benchmark/flyki_overlap/grouping/GroupingSourceTests.cpp`
+  - `benchmark/flyki_overlap/grouping/grouping_source_cli.cpp`
+  - `examples/predicted_grouping/predicted_groups.txt`
+  - `examples/predicted_grouping/predicted_overlap.txt`
+  - `docs/grouping_sources.md`
+  - `PROGRESS.md`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target grouping_source_tests --config Release`
+  - `cmake --build build/flyki --target grouping_source_cli --config Release`
+  - `cmake --build build/flyki --target cbocco_grouping_loader_tests --config Release`
+  - `cmake --build build/flyki --target grouping_provider_tests --config Release`
+  - `cmake --build build/flyki --target grouping_metrics_tests --config Release`
+  - `cmake --build build/flyki --target cbocco --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\grouping_source_tests.exe`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source legacy_by_function --func 1 --root benchmark\flyki_overlap --print-summary --dump-shared-map .codex\phase2c_legacy_map.txt`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po benchmark\flyki_overlap\1po.txt --oo benchmark\flyki_overlap\1oo.txt --print-summary --dump-shared-map .codex\phase2c_explicit_map.txt`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po examples\predicted_grouping\predicted_groups.txt --oo examples\predicted_grouping\predicted_overlap.txt --print-summary`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source nope --func 1 --root benchmark\flyki_overlap`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po .codex\missing_predicted_groups.txt --oo benchmark\flyki_overlap\1oo.txt`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po benchmark\flyki_overlap\1po.txt --oo .codex\missing_predicted_overlap.txt`
+  - `.\build\flyki\Release\cbocco_grouping_loader_tests.exe`
+  - `.\build\flyki\Release\grouping_provider_tests.exe`
+  - `.\build\flyki\Release\grouping_metrics_tests.exe`
+- 输出：
+  - `grouping_source_tests`: `GroupingSourceTests passed`
+  - legacy mode: `Number Of Groups: 20`, `Dimension: 905`, `Unique Variables: 905`, `Shared Variables: 95`, `Validation Errors: 0`
+  - explicit file mode with `1po/1oo`: same summary as legacy mode
+  - sample predicted files: same summary as legacy mode
+  - legacy and explicit shared-map SHA256 matched: `A42A546503BF724CC4D2D33262B25E3F68F6989F30ACE649CD0C69318F021F55`
+  - invalid source mode returned nonzero with `Invalid grouping source mode: nope`
+  - missing explicit po returned nonzero with `Missing explicit po file`
+  - missing explicit oo returned nonzero with `Missing explicit oo file`
+  - `cbocco_grouping_loader_tests`: `CBOCCGroupingLoaderTests passed`
+  - `grouping_provider_tests`: `GroupingProviderTests passed`
+  - `grouping_metrics_tests`: `GroupingMetricsTests passed`
+  - `cbocco`: failed only with known missing external CMA-ES files: `cmaes_interface.h`, `boundary_transformation.h`, `CMA-ES implementation source files`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_source_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_source_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase2c_legacy_map.txt`
+  - `E:\CWVIG_OSD\.codex\phase2c_explicit_map.txt`
+  - `docs/grouping_sources.md`
+- 关键观察：
+  - `loadLegacyGroupingFromFiles(po, oo)` reuses the same `GroupingIO -> LegacyGroupingAdapter -> validation` path as legacy function loading.
+  - `grouping_source_cli` supports `legacy_by_function` and `explicit_files`.
+  - Example predicted files currently mirror `1po.txt` and `1oo.txt` for deterministic equivalence.
+- 遗留风险：
+  - CWVIG-OSD output generation is not implemented yet.
+  - Full `cbocco` remains blocked by missing external CMA-ES files.
+- 推荐下一目标：
+  - Add a method-level source selection flag around the CBOCC seam only after deciding how predicted grouping files will be passed at runtime; keep `CBCCO` defaulting to `legacy_by_function`.
