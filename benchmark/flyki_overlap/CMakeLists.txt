@@ -82,6 +82,16 @@ add_library(grouping_core STATIC
 target_include_directories(grouping_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(grouping_core PUBLIC cxx_std_17)
 
+add_library(soft_overlap_core STATIC
+    grouping/SoftOverlapDecomposition.cpp
+    grouping/SoftOverlapDecomposition.h
+    grouping/WeightedInteractionGraph.cpp
+    grouping/WeightedInteractionGraph.h
+)
+target_include_directories(soft_overlap_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(soft_overlap_core PUBLIC grouping_core probe_core)
+target_compile_features(soft_overlap_core PUBLIC cxx_std_17)
+
 add_executable(grouping_metrics_cli
     grouping/grouping_metrics_cli.cpp
 )
@@ -124,6 +134,12 @@ add_executable(cwvig_edge_eval_cli
 target_link_libraries(cwvig_edge_eval_cli PRIVATE probe_core grouping_core)
 target_compile_features(cwvig_edge_eval_cli PRIVATE cxx_std_17)
 
+add_executable(soft_overlap_cli
+    grouping/soft_overlap_cli.cpp
+)
+target_link_libraries(soft_overlap_cli PRIVATE soft_overlap_core)
+target_compile_features(soft_overlap_cli PRIVATE cxx_std_17)
+
 add_executable(grouping_metrics_tests
     grouping/GroupingMetricsTests.cpp
 )
@@ -165,6 +181,12 @@ add_executable(cwvig_edge_eval_tests
 )
 target_link_libraries(cwvig_edge_eval_tests PRIVATE probe_core grouping_core)
 target_compile_features(cwvig_edge_eval_tests PRIVATE cxx_std_17)
+
+add_executable(soft_overlap_tests
+    grouping/SoftOverlapDecompositionTests.cpp
+)
+target_link_libraries(soft_overlap_tests PRIVATE soft_overlap_core)
+target_compile_features(soft_overlap_tests PRIVATE cxx_std_17)
 
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")

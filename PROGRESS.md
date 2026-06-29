@@ -520,3 +520,76 @@
   - Flyki smoke uses only `dimension_limit=10`; full 905D probing remains intentionally skipped.
 - 推荐下一目标：
   - Add a calibrated CWVIG graph export step that writes `W` and `U` matrices or edge lists from the evaluated/calibrated edge CSV, still without implementing SoftOverlapDecomposition.
+
+## 2026-06-29 - Phase 4A Edge-Seeded Soft Overlap Decomposition v0
+
+- 状态：done locally; synthetic decomposition and Flyki small-subset smoke verified
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/grouping/WeightedInteractionGraph.h`
+  - `benchmark/flyki_overlap/grouping/WeightedInteractionGraph.cpp`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapDecomposition.h`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapDecomposition.cpp`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapDecompositionTests.cpp`
+  - `benchmark/flyki_overlap/grouping/soft_overlap_cli.cpp`
+  - `docs/soft_overlap_decomposition.md`
+  - `PROGRESS.md`
+- TDD RED 命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target soft_overlap_tests --config Release`
+- TDD RED 输出：
+  - configure succeeded
+  - build failed as expected with `fatal error C1083: cannot open include file: grouping/SoftOverlapDecomposition.h`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target soft_overlap_tests --config Release`
+  - `cmake --build build/flyki --target soft_overlap_cli --config Release`
+  - `cmake --build build/flyki --target cwvig_estimator_cli --config Release`
+  - `cmake --build build/flyki --target grouping_source_cli --config Release`
+  - `cmake --build build/flyki --target cwvig_edge_eval_tests --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\soft_overlap_tests.exe`
+  - `.\build\flyki\Release\cwvig_edge_eval_tests.exe`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode synthetic --synthetic-function overlap --dimension-limit 3 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase4a_synthetic_overlap_edges.csv`
+  - `.\build\flyki\Release\soft_overlap_cli.exe --edges .codex\phase4a_synthetic_overlap_edges.csv --score-column mean_abs_normalized --score-threshold 1.0 --use-log1p-score false --expand-threshold 1.5 --merge-jaccard-threshold 0.8 --z-threshold 0.8 --shared-ratio-threshold 0.7 --dimension 3 --output-z .codex\phase4a_synthetic_z.csv --output-po .codex\phase4a_synthetic_predicted_groups.txt --output-oo .codex\phase4a_synthetic_predicted_overlap.txt --print-summary`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po .codex\phase4a_synthetic_predicted_groups.txt --oo .codex\phase4a_synthetic_predicted_overlap.txt --print-summary`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode flyki --func 1 --dimension-limit 10 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase4a_flyki_f1_edges.csv`
+  - `.\build\flyki\Release\soft_overlap_cli.exe --edges .codex\phase4a_flyki_f1_edges.csv --score-column mean_abs_normalized --score-threshold 330634000000 --use-log1p-score true --expand-threshold 20 --merge-jaccard-threshold 0.8 --z-threshold 0.99 --shared-ratio-threshold 0.7 --dimension 10 --output-z .codex\phase4a_flyki_f1_z.csv --output-po .codex\phase4a_flyki_f1_predicted_groups.txt --output-oo .codex\phase4a_flyki_f1_predicted_overlap.txt --print-summary`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po .codex\phase4a_flyki_f1_predicted_groups.txt --oo .codex\phase4a_flyki_f1_predicted_overlap.txt --print-summary`
+- 输出：
+  - `soft_overlap_tests`: `SoftOverlapDecompositionTests passed`
+  - `cwvig_edge_eval_tests`: `CWVIGEdgeEvalTests passed`
+  - synthetic overlap estimator: `Edges Written: 3`, `FE Count: 36`
+  - synthetic `soft_overlap_cli`: `Dimension: 3`, `Graph Edges: 3`, `Groups: 2`, `Shared Variables: 1`, `Z Rows: 3`, `Z Columns: 2`
+  - synthetic explicit loader: `Number Of Groups: 2`, `Dimension: 3`, `Unique Variables: 3`, `Shared Variables: 1`, `Validation Errors: 0`
+  - Flyki F1 estimator: `Edges Written: 45`, `FE Count: 540`
+  - Flyki F1 `soft_overlap_cli`: `Dimension: 10`, `Graph Edges: 45`, `Groups: 10`, `Shared Variables: 10`, `Z Rows: 10`, `Z Columns: 10`
+  - Flyki F1 explicit loader: `Number Of Groups: 10`, `Dimension: 10`, `Unique Variables: 10`, `Shared Variables: 10`, `Validation Errors: 0`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase4a_synthetic_overlap_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase4a_synthetic_z.csv`
+  - `E:\CWVIG_OSD\.codex\phase4a_synthetic_predicted_groups.txt`
+  - `E:\CWVIG_OSD\.codex\phase4a_synthetic_predicted_overlap.txt`
+  - `E:\CWVIG_OSD\.codex\phase4a_flyki_f1_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase4a_flyki_f1_z.csv`
+  - `E:\CWVIG_OSD\.codex\phase4a_flyki_f1_predicted_groups.txt`
+  - `E:\CWVIG_OSD\.codex\phase4a_flyki_f1_predicted_overlap.txt`
+  - `docs/soft_overlap_decomposition.md`
+- 关键观察：
+  - `WeightedInteractionGraph` reuses the existing CWVIG edge CSV parser and supports `probability`, `mean_abs_normalized`, and `mean_abs_raw`.
+  - `SoftOverlapDecomposition` builds deterministic edge-seeded communities, expands by average affinity, merges by Jaccard, adds uncovered singletons, and writes po/oo/Z outputs.
+  - Z non-member affinity uses `affinity / (1 + affinity)` so large Flyki scores do not all clamp to exactly `1`.
+  - Synthetic path overlap produces `{0,1}` and `{1,2}` with shared variable `1`.
+  - Predicted `oo` output is written per predicted group so existing explicit grouping validation succeeds.
+  - No SharedVariablePolicy, CBOG_CBD, CMAESO, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - v0 uses manual thresholds and greedy edge seeding; it is not yet an affiliation model.
+  - Flyki smoke is compatibility-only and does not claim grouping accuracy.
+  - Full 905D decomposition remains intentionally skipped.
+  - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
+- 推荐下一目标：
+  - Add calibrated threshold selection for `soft_overlap_cli` inputs, then evaluate predicted po/oo against Phase 3C edge/grouping metrics before any optimizer integration.
