@@ -136,4 +136,35 @@ These targets must remain buildable without CMA-ES:
 
 ## Current Status
 
-As of Phase 6A, no compatible CMA-ES dependency is present locally. The build path is prepared and documented, but `cbocco` remains unavailable until the external files are supplied.
+As of Phase 6B verification on 2026-06-30, no compatible CMA-ES dependency is present locally. The actual local layout is:
+
+```text
+third_party/cmaes/
+└── README.md
+```
+
+Missing files:
+
+- `third_party/cmaes/include/cmaes_interface.h`
+- `third_party/cmaes/include/boundary_transformation.h`
+- one compatible CMA-ES implementation source under `third_party/cmaes/src/`
+- one compatible boundary transformation implementation source under `third_party/cmaes/src/`
+
+Verified independent targets still build without CMA-ES:
+
+```powershell
+cmake -S benchmark/flyki_overlap -B build/flyki_phase6b -DCMAKE_BUILD_TYPE=Release -DCMAES_ROOT=third_party/cmaes
+cmake --build build/flyki_phase6b --target flyki_core --config Release
+cmake --build build/flyki_phase6b --target cwvig_grouping_pipeline_cli --config Release
+cmake --build build/flyki_phase6b --target cwvig_grouping_pipeline_tests --config Release
+.\build\flyki_phase6b\Release\cwvig_grouping_pipeline_tests.exe
+```
+
+Current blocker:
+
+```powershell
+cmake --build build/flyki_phase6b --target cmaes_dependency_check --config Release
+cmake --build build/flyki_phase6b --target cbocco --config Release
+```
+
+Both commands fail with the documented missing-dependency diagnostic until the external files are supplied. The build path is prepared and documented, but `cbocco` remains unavailable.

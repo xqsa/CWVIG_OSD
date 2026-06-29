@@ -1125,3 +1125,47 @@
   - `CMAESO.cpp` still contains the original MSVC-specific `strcpy_s` call; Phase 6A did not change algorithm or portability logic.
 - 推荐下一目标：
   - Provide the original CMA-ES dependency under `third_party/cmaes` or via `-DCMAES_ROOT`, then run `cmaes_dependency_check` and `cbocco` to verify full optimizer build restoration.
+
+## 2026-06-30 - Phase 6B CMA-ES Dependency Verification Attempt
+
+- 状态：partial; independent targets verified, `cmaes_dependency_check` and `cbocco` remain blocked because CMA-ES files are not present in the current worktree
+- 修改文件：
+  - `docs/cmaes_dependency.md`
+  - `PROGRESS.md`
+- inspected dependency layout:
+  - `third_party/cmaes/README.md` exists.
+  - `third_party/cmaes/include/` does not exist.
+  - `third_party/cmaes/src/` does not exist.
+  - Repository search found no `cmaes_interface.h`, `boundary_transformation.h`, `cmaes.c`, `cmaes.cpp`, `cmaes_interface.c`, `cmaes_interface.cpp`, `boundary_transformation.c`, or `boundary_transformation.cpp`.
+- 配置命令：
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake -S benchmark/flyki_overlap -B build/flyki_phase6b -DCMAKE_BUILD_TYPE=Release -DCMAES_ROOT=third_party/cmaes`
+- 构建命令：
+  - `cmake --build build/flyki_phase6b --target flyki_core --config Release`
+  - `cmake --build build/flyki_phase6b --target cwvig_grouping_pipeline_cli --config Release`
+  - `cmake --build build/flyki_phase6b --target cwvig_grouping_pipeline_tests --config Release`
+  - `.\build\flyki_phase6b\Release\cwvig_grouping_pipeline_tests.exe`
+  - `cmake --build build/flyki_phase6b --target cmaes_dependency_check --config Release`
+  - `cmake --build build/flyki_phase6b --target cbocco --config Release`
+- 构建输出：
+  - `flyki_core` built successfully: `E:\CWVIG_OSD\build\flyki_phase6b\Release\flyki_core.lib`
+  - `cwvig_grouping_pipeline_cli` built successfully: `E:\CWVIG_OSD\build\flyki_phase6b\Release\cwvig_grouping_pipeline_cli.exe`
+  - `cwvig_grouping_pipeline_tests` built successfully and printed `CWVIGGroupingPipelineTests passed`.
+  - `cmaes_dependency_check` failed with the documented missing-dependency diagnostic.
+  - `cbocco` failed with the documented missing-dependency diagnostic.
+- missing dependency status:
+  - Missing `third_party/cmaes/include/cmaes_interface.h`
+  - Missing `third_party/cmaes/include/boundary_transformation.h`
+  - Missing one compatible CMA-ES implementation source under `third_party/cmaes/src/`
+  - Missing one compatible boundary transformation implementation source under `third_party/cmaes/src/`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki_phase6b\cmaes_dependency_check.log`
+  - `E:\CWVIG_OSD\build\flyki_phase6b\cbocco.log`
+  - `E:\CWVIG_OSD\docs\cmaes_dependency.md`
+- 关键观察：
+  - The Phase 6A CMake diagnostic path is working correctly with explicit `-DCMAES_ROOT=third_party/cmaes`.
+  - There is no compile/link portability error to fix yet because the dependency files are absent before compilation.
+  - No SharedVariablePolicy, CBOG_CBD optimization logic, CBOCC optimization behavior, CMAESO algorithm logic, or benchmark function logic was changed.
+- 遗留风险：
+  - Phase 6B cannot be completed until the external CMA-ES files are actually present under `third_party/cmaes/include` and `third_party/cmaes/src`, or a valid external path is passed through `-DCMAES_ROOT`.
+- 推荐下一目标：
+  - Place the compatible CMA-ES files in `third_party/cmaes/include` and `third_party/cmaes/src`, then rerun Phase 6B build verification.
