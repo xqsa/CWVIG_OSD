@@ -1065,3 +1065,63 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files.
 - 推荐下一目标：
   - Run `scripts\run_grouping_medium.ps1` when runtime is acceptable, then start optimizer integration by adding a grouping-provider method switch without modifying CBOG_CBD or CMAESO internals.
+
+## 2026-06-30 - Phase 6A CMA-ES Dependency Recovery And cbocco Build Restoration
+
+- 状态：done locally; dependency audited, CMAES_ROOT CMake path prepared, missing-dependency diagnostics verified, independent grouping targets verified
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/cmaes_dependency_check.cpp`
+  - `benchmark/flyki_overlap/cmake/report_missing_cmaes.cmake`
+  - `docs/cmaes_dependency.md`
+  - `third_party/cmaes/README.md`
+  - `PROGRESS.md`
+- TDD RED 命令：
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake -S benchmark/flyki_overlap -B build/flyki_phase6a_red -DCMAKE_BUILD_TYPE=Release; cmake --build build/flyki_phase6a_red --target cbocco --config Release`
+- TDD RED 输出：
+  - `cbocco` failed because external CMA-ES headers and implementation sources are missing.
+  - Old diagnostic did not mention the new `CMAES_ROOT` convention, expected `third_party/cmaes` layout, or independent CWVIG grouping targets.
+- CMAESO dependency audit：
+  - Required headers: `cmaes_interface.h`, `boundary_transformation.h`
+  - Required types: `cmaes_t`, `cmaes_boundary_transformation_t`
+  - Required CMA-ES API: `cmaes_init`, `cmaes_Get`, `cmaes_exit`, `cmaes_resume_distribution`, `cmaes_NewDouble`, `cmaes_SamplePopulation`, `cmaes_ReSampleSingle`, `cmaes_UpdateDistribution`
+  - Required boundary API: `cmaes_boundary_transformation_init`, `cmaes_boundary_transformation_exit`, `cmaes_boundary_transformation`, `cmaes_boundary_transformation_inverse`, `cmaes_boundary_transformation_shift_into_feasible_preimage`
+  - Namespace assumption: plain C/global API; `boundary_transformation.h` is included under `extern "C"`.
+  - Repository search found no bundled `cmaes_interface.h`, `boundary_transformation.h`, or CMA-ES implementation source files.
+- 编译命令：
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake -S benchmark/flyki_overlap -B build/flyki_phase6a -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki_phase6a --target flyki_core --config Release`
+  - `cmake --build build/flyki_phase6a --target cwvig_grouping_pipeline_cli --config Release`
+  - `cmake --build build/flyki_phase6a --target cwvig_grouping_pipeline_tests --config Release`
+  - `.\build\flyki_phase6a\Release\cwvig_grouping_pipeline_tests.exe`
+- 编译结果：
+  - `flyki_core` built successfully.
+  - `cwvig_grouping_pipeline_cli.exe` built successfully.
+  - `cwvig_grouping_pipeline_tests.exe` built and printed `CWVIGGroupingPipelineTests passed`.
+- 缺失依赖诊断命令：
+  - `cmake --build build/flyki_phase6a --target cmaes_dependency_check --config Release`
+  - `cmake --build build/flyki_phase6a --target cbocco --config Release`
+- 缺失依赖诊断结果：
+  - Both targets failed intentionally because no compatible CMA-ES dependency is present.
+  - The diagnostic now lists missing files, expected `third_party/cmaes` layout, `-DCMAES_ROOT=third_party/cmaes` example, optional `-DCMAES_SOURCES`, and notes that `flyki_core` and CWVIG grouping targets do not require CMA-ES.
+  - Logs were written locally to:
+    - `E:\CWVIG_OSD\build\flyki_phase6a\cmaes_dependency_check_missing.log`
+    - `E:\CWVIG_OSD\build\flyki_phase6a\cbocco_missing.log`
+- 结果文件：
+  - `E:\CWVIG_OSD\docs\cmaes_dependency.md`
+  - `E:\CWVIG_OSD\third_party\cmaes\README.md`
+  - `E:\CWVIG_OSD\build\flyki_phase6a\Release\flyki_core.lib`
+  - `E:\CWVIG_OSD\build\flyki_phase6a\Release\cwvig_grouping_pipeline_cli.exe`
+  - `E:\CWVIG_OSD\build\flyki_phase6a\Release\cwvig_grouping_pipeline_tests.exe`
+- 关键观察：
+  - Added `CMAES_ROOT` and `CMAES_SOURCES` while keeping deprecated `FLYKI_CMAES_DIR` and `FLYKI_CMAES_SOURCES` aliases.
+  - Default `CMAES_ROOT` points to `third_party/cmaes`.
+  - Added `cmaes_dependency_check` as a compile-only object target when the dependency exists, and as a clear diagnostic target when it is missing.
+  - No compatible CMA-ES dependency is present locally; no replacement, download, fake optimizer, or stub was added.
+  - No SharedVariablePolicy, CBOG_CBD optimization logic, CMAESO algorithm logic, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - `cbocco` still cannot build until the user provides the original compatible CMA-ES files.
+  - Valid external CMA-ES integration remains untested because the dependency is not present.
+  - `CMAESO.cpp` still contains the original MSVC-specific `strcpy_s` call; Phase 6A did not change algorithm or portability logic.
+- 推荐下一目标：
+  - Provide the original CMA-ES dependency under `third_party/cmaes` or via `-DCMAES_ROOT`, then run `cmaes_dependency_check` and `cbocco` to verify full optimizer build restoration.

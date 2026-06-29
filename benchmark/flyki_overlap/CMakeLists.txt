@@ -222,10 +222,16 @@ add_executable(cwvig_grouping_pipeline_tests
 target_link_libraries(cwvig_grouping_pipeline_tests PRIVATE soft_overlap_core)
 target_compile_features(cwvig_grouping_pipeline_tests PRIVATE cxx_std_17)
 
-set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
-set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")
+get_filename_component(FLYKI_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+set(CMAES_ROOT "${FLYKI_REPO_ROOT}/third_party/cmaes" CACHE PATH "Path to the original CMA-ES C/C++ dependency root.")
+set(CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, relative to CMAES_ROOT unless absolute.")
+set(FLYKI_CMAES_DIR "" CACHE PATH "Deprecated alias for CMAES_ROOT.")
+set(FLYKI_CMAES_SOURCES "" CACHE STRING "Deprecated alias for CMAES_SOURCES.")
 
 set(_flyki_cmaes_search_dirs "${CMAKE_CURRENT_SOURCE_DIR}")
+if(CMAES_ROOT)
+    list(APPEND _flyki_cmaes_search_dirs "${CMAES_ROOT}")
+endif()
 if(FLYKI_CMAES_DIR)
     list(APPEND _flyki_cmaes_search_dirs "${FLYKI_CMAES_DIR}")
 endif()
@@ -253,10 +259,20 @@ if(NOT FLYKI_BOUNDARY_INCLUDE_DIR)
 endif()
 
 set(FLYKI_CMAES_SOURCE_FILES)
-if(FLYKI_CMAES_SOURCES)
-    foreach(_source IN LISTS FLYKI_CMAES_SOURCES)
+if(CMAES_SOURCES)
+    set(_flyki_explicit_cmaes_sources ${CMAES_SOURCES})
+elseif(FLYKI_CMAES_SOURCES)
+    set(_flyki_explicit_cmaes_sources ${FLYKI_CMAES_SOURCES})
+else()
+    set(_flyki_explicit_cmaes_sources)
+endif()
+
+if(_flyki_explicit_cmaes_sources)
+    foreach(_source IN LISTS _flyki_explicit_cmaes_sources)
         if(IS_ABSOLUTE "${_source}")
             set(_resolved_source "${_source}")
+        elseif(CMAES_ROOT)
+            set(_resolved_source "${CMAES_ROOT}/${_source}")
         elseif(FLYKI_CMAES_DIR)
             set(_resolved_source "${FLYKI_CMAES_DIR}/${_source}")
         else()
@@ -269,12 +285,12 @@ if(FLYKI_CMAES_SOURCES)
             list(APPEND FLYKI_MISSING_CMAES_FILES "${_resolved_source}")
         endif()
     endforeach()
-elseif(FLYKI_CMAES_DIR)
+else()
     foreach(_candidate IN ITEMS cmaes.c cmaes.cpp cmaes_interface.c cmaes_interface.cpp)
         unset(_flyki_cmaes_impl CACHE)
         find_file(_flyki_cmaes_impl
             NAMES ${_candidate}
-            PATHS "${FLYKI_CMAES_DIR}"
+            PATHS ${_flyki_cmaes_search_dirs}
             PATH_SUFFIXES . src c-cmaes
             NO_DEFAULT_PATH
         )
@@ -283,12 +299,15 @@ elseif(FLYKI_CMAES_DIR)
             break()
         endif()
     endforeach()
+    if(NOT _flyki_cmaes_impl)
+        list(APPEND FLYKI_MISSING_CMAES_FILES "one of: src/cmaes.c, src/cmaes.cpp, src/cmaes_interface.c, src/cmaes_interface.cpp")
+    endif()
 
     foreach(_candidate IN ITEMS boundary_transformation.c boundary_transformation.cpp)
         unset(_flyki_boundary_impl CACHE)
         find_file(_flyki_boundary_impl
             NAMES ${_candidate}
-            PATHS "${FLYKI_CMAES_DIR}"
+            PATHS ${_flyki_cmaes_search_dirs}
             PATH_SUFFIXES . src c-cmaes
             NO_DEFAULT_PATH
         )
@@ -297,10 +316,9 @@ elseif(FLYKI_CMAES_DIR)
             break()
         endif()
     endforeach()
-endif()
-
-if(NOT FLYKI_CMAES_SOURCE_FILES)
-    list(APPEND FLYKI_MISSING_CMAES_FILES "CMA-ES implementation source files")
+    if(NOT _flyki_boundary_impl)
+        list(APPEND FLYKI_MISSING_CMAES_FILES "one of: src/boundary_transformation.c, src/boundary_transformation.cpp")
+    endif()
 endif()
 
 if(NOT FLYKI_MISSING_CMAES_FILES)
@@ -317,6 +335,15 @@ if(NOT FLYKI_MISSING_CMAES_FILES)
         "${FLYKI_BOUNDARY_INCLUDE_DIR}"
     )
 
+    add_library(cmaes_dependency_check OBJECT
+        cmaes_dependency_check.cpp
+    )
+    target_include_directories(cmaes_dependency_check PRIVATE
+        "${FLYKI_CMAES_INCLUDE_DIR}"
+        "${FLYKI_BOUNDARY_INCLUDE_DIR}"
+    )
+    target_compile_features(cmaes_dependency_check PRIVATE cxx_std_17)
+
     add_executable(cbocco
         CBOCC.cpp
         CBOG_CBD.cpp
@@ -329,9 +356,18 @@ if(NOT FLYKI_MISSING_CMAES_FILES)
     target_link_libraries(cbocco PRIVATE flyki_cmaes grouping_core)
 else()
     string(REPLACE ";" ", " FLYKI_MISSING_CMAES_FILES_TEXT "${FLYKI_MISSING_CMAES_FILES}")
+    add_custom_target(cmaes_dependency_check
+        COMMAND "${CMAKE_COMMAND}"
+            "-DFLYKI_CMAES_TARGET_NAME=cmaes_dependency_check"
+            "-DFLYKI_MISSING_CMAES_FILES=${FLYKI_MISSING_CMAES_FILES_TEXT}"
+            -P "${CMAKE_CURRENT_LIST_DIR}/cmake/report_missing_cmaes.cmake"
+        COMMENT "Reporting missing external CMA-ES dependency for cmaes_dependency_check"
+        VERBATIM
+    )
     add_custom_target(cbocco
         COMMAND "${CMAKE_COMMAND}"
-            -DFLYKI_MISSING_CMAES_FILES="${FLYKI_MISSING_CMAES_FILES_TEXT}"
+            "-DFLYKI_CMAES_TARGET_NAME=cbocco"
+            "-DFLYKI_MISSING_CMAES_FILES=${FLYKI_MISSING_CMAES_FILES_TEXT}"
             -P "${CMAKE_CURRENT_LIST_DIR}/cmake/report_missing_cmaes.cmake"
         COMMENT "Reporting missing external CMA-ES dependency for cbocco"
         VERBATIM
