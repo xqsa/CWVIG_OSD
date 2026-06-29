@@ -1,0 +1,4 @@
+preset,runs,truth_runs,shared_zero_runs,over_shared_ge_0_8_runs,over_shared_le_0_05_runs,validation_errors_total,shared_variables_mean,shared_variables_std,over_shared_ratio_mean,over_shared_ratio_std,shared_f1_mean,shared_f1_std,shared_f1_median,mean_best_group_jaccard_mean,mean_best_group_jaccard_std,validation_errors_mean,validation_errors_std,function_evaluations_mean,function_evaluations_std
+balanced,2,2,0,0,0,0,5.5,0.5,0.55,0.05,0.267857142857,0.017857142857,0.267857142857,0.691666666667,0.0416666666665,0,0,540,0
+capped,2,2,0,0,0,0,5,0,0.5,0,0.285714285714,0,0.285714285714,0.458002645503,0.083664021164,0,0,540,0
+conservative,2,2,2,0,2,0,0,0,0,0,0,0,0,0.888888888889,0,0,0,540,0

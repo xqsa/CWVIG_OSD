@@ -84,6 +84,7 @@ struct CWVIGGroupingPipelineResult {
 PipelinePreset parsePipelinePreset(const std::string &name);
 std::string pipelinePresetName(PipelinePreset preset);
 CWVIGGroupingPipelineConfig pipelineConfigForPreset(PipelinePreset preset);
+CWVIGGroupingPipelineConfig loadPipelineConfigFile(const std::filesystem::path &path);
 
 CWVIGGroupingPipelineResult runCWVIGGroupingPipeline(
     const CWVIGGroupingPipelineConfig &config);

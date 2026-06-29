@@ -980,3 +980,88 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
 - 推荐下一目标：
   - Add a custom batch over more Flyki functions and then decide whether `capped` becomes the exported default preset in the C++ pipeline entry.
+
+## 2026-06-29 - Phase 5D Default Preset Freeze And Reproducibility Package
+
+- 状态：done locally; capped config, CLI config loading, smoke reproducibility script, deterministic check, docs, and manifest verified
+- 修改文件：
+  - `configs/cwvig_presets/capped_default.json`
+  - `configs/cwvig_presets/balanced_ablation.json`
+  - `configs/cwvig_presets/conservative_ablation.json`
+  - `benchmark/flyki_overlap/grouping/CWVIGGroupingPipeline.h`
+  - `benchmark/flyki_overlap/grouping/CWVIGGroupingPipeline.cpp`
+  - `benchmark/flyki_overlap/grouping/CWVIGGroupingPipelineTests.cpp`
+  - `benchmark/flyki_overlap/grouping/cwvig_grouping_pipeline_cli.cpp`
+  - `experiments/run_grouping_batch.py`
+  - `experiments/check_reproducibility.py`
+  - `scripts/run_grouping_smoke.ps1`
+  - `scripts/run_grouping_medium.ps1`
+  - `scripts/run_grouping_smoke.sh`
+  - `scripts/write_reproducibility_manifest.py`
+  - `docs/default_preset_selection.md`
+  - `docs/reproducibility.md`
+  - `PROGRESS.md`
+  - `results/reproducibility_manifest.md`
+  - `results/repro_smoke/summary.csv`
+  - `results/repro_smoke/preset_summary.csv`
+  - `results/repro_smoke/by_dimension_preset.csv`
+  - `results/repro_smoke/by_context_preset.csv`
+  - `results/repro_smoke/by_seed_preset.csv`
+  - `results/repro_smoke/default_preset_selection.md`
+  - `results/repro_smoke/batch_plan.txt`
+- TDD RED 命令：
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake --build build/flyki --target cwvig_grouping_pipeline_tests --config Release`
+  - `C:\Windows\py.exe -3 experiments\run_grouping_batch.py --mode smoke --output-root results\repro_smoke_red --preset-config-dir configs\cwvig_presets --dry-run`
+- TDD RED 输出：
+  - C++ test failed as expected because `flyki::grouping::loadPipelineConfigFile` did not exist.
+  - Python runner failed as expected with `unrecognized arguments: --preset-config-dir configs\cwvig_presets`.
+- 编译命令：
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release; cmake --build build/flyki --target cwvig_grouping_pipeline_tests --config Release; .\build\flyki\Release\cwvig_grouping_pipeline_tests.exe`
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake --build build/flyki --target cwvig_grouping_pipeline_cli --config Release; cmake --build build/flyki --target grouping_source_cli --config Release`
+- 编译结果：
+  - `cwvig_grouping_pipeline_tests` built and printed `CWVIGGroupingPipelineTests passed`.
+  - `cwvig_grouping_pipeline_cli.exe` built.
+  - `grouping_source_cli.exe` built.
+- 运行命令：
+  - `C:\Windows\py.exe -3 -m py_compile experiments\run_grouping_batch.py experiments\analyze_grouping_batch.py experiments\check_reproducibility.py scripts\write_reproducibility_manifest.py`
+  - `.\build\flyki\Release\cwvig_grouping_pipeline_cli.exe --config configs\cwvig_presets\capped_default.json --mode flyki --func 1 --dimension-limit 10 --seed 1 --contexts 3 --output-dir results\repro_config_smoke --print-summary`
+  - `C:\Windows\py.exe -3 experiments\check_reproducibility.py --clean`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_grouping_smoke.ps1`
+  - `C:\Windows\py.exe -3 experiments\run_grouping_batch.py --mode medium --output-root results\repro_medium_dry --preset-config-dir configs\cwvig_presets --dry-run`
+  - `C:\Windows\py.exe -3 scripts\write_reproducibility_manifest.py`
+- 输出：
+  - config CLI run printed `preset=capped`, `edge_weight_mode=log1p`, `sparsification_mode=score_threshold`, `validation_errors=0`.
+  - deterministic check printed `loader_validation=0` and `truth_files_used_in_unsupervised_path=false`.
+  - smoke reproducibility script ran 6 jobs and regenerated all smoke summary files.
+  - medium config dry-run planned `72` runs and wrote `E:\CWVIG_OSD\results\repro_medium_dry\batch_plan.txt`.
+- 结果文件：
+  - `E:\CWVIG_OSD\results\reproducibility_manifest.md`
+  - `E:\CWVIG_OSD\results\repro_smoke\summary.csv`
+  - `E:\CWVIG_OSD\results\repro_smoke\preset_summary.csv`
+  - `E:\CWVIG_OSD\results\repro_smoke\by_dimension_preset.csv`
+  - `E:\CWVIG_OSD\results\repro_smoke\by_context_preset.csv`
+  - `E:\CWVIG_OSD\results\repro_smoke\by_seed_preset.csv`
+  - `E:\CWVIG_OSD\results\repro_smoke\default_preset_selection.md`
+  - `E:\CWVIG_OSD\results\repro_smoke\batch_plan.txt`
+  - `E:\CWVIG_OSD\results\repro_checks\fixed_a\predicted_groups.txt`
+  - `E:\CWVIG_OSD\results\repro_checks\fixed_a\predicted_overlap.txt`
+  - `E:\CWVIG_OSD\results\repro_medium_dry\batch_plan.txt`
+- Smoke reproducibility summary:
+  - `balanced`: runs `2`, truth runs `2`, shared mean `5.5`, over-shared mean `0.55`, SharedVar-F1 mean `0.267857142857`, validation total `0`
+  - `capped`: runs `2`, truth runs `2`, shared mean `5`, over-shared mean `0.5`, SharedVar-F1 mean `0.285714285714`, validation total `0`
+  - `conservative`: runs `2`, truth runs `2`, shared mean `0`, over-shared mean `0`, SharedVar-F1 mean `0`, validation total `0`
+  - smoke reproducibility recommendation: `capped`
+- 关键观察：
+  - `capped_default.json` freezes the current default candidate and records estimator, graph, membership, shared-variable, delta, contexts, seed-handling, and dimension-limit caveat fields.
+  - `balanced_ablation.json` and `conservative_ablation.json` keep ablation presets reproducible without changing optimizer code.
+  - `cwvig_grouping_pipeline_cli --config` loads config values while explicit CLI args override run-specific fields such as mode, func, dimension limit, seed, contexts, and output dir.
+  - Batch runner can use `--preset-config-dir configs/cwvig_presets`, so smoke/medium scripts execute frozen preset configs instead of implicit preset names.
+  - Truth `po/oo` files remain after-the-fact evaluation inputs in the batch runner; `check_reproducibility.py` confirms the no-truth pipeline path does not create truth-only metric files.
+  - No SharedVariablePolicy, CBOG_CBD, CMAESO, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - `results/repro_medium` was not run in this phase; the medium script exists and the config runner dry-run planned 72 runs.
+  - `capped` is still only a current default candidate, not a final full-benchmark default.
+  - Evidence remains limited to Flyki `func=1` and `dimension_limit <= 50`.
+  - Full `cbocco` remains blocked by missing external CMA-ES files.
+- 推荐下一目标：
+  - Run `scripts\run_grouping_medium.ps1` when runtime is acceptable, then start optimizer integration by adding a grouping-provider method switch without modifying CBOG_CBD or CMAESO internals.

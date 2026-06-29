@@ -35,6 +35,12 @@ std::string readFile(const std::filesystem::path &path)
     return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
 }
 
+void writeText(const std::filesystem::path &path, const std::string &text)
+{
+    std::ofstream output(path);
+    output << text;
+}
+
 flyki::grouping::CWVIGGroupingPipelineConfig baseSyntheticConfig(
     const std::filesystem::path &output_dir,
     const std::string &synthetic_function)
@@ -74,6 +80,31 @@ int main()
     const auto true_po = temp_root / "path_true_po.txt";
     const auto true_oo = temp_root / "path_true_oo.txt";
     writeTruth(true_po, true_oo, {{0, 1}, {1, 2}}, {{1}, {1}});
+
+    const auto capped_config_path = temp_root / "capped_default.json";
+    writeText(capped_config_path, R"({
+  "preset": "capped",
+  "mode": "flyki",
+  "func": 1,
+  "dimension_limit": 10,
+  "contexts": 3,
+  "seed": 1,
+  "delta": 0.0001,
+  "edge_score_column": "mean_abs_normalized",
+  "edge_weight_mode": "log1p",
+  "sparsification_mode": "score_threshold",
+  "membership_transform": "sigmoid_centered",
+  "shared_rule": "capped_shared",
+  "max_shared_ratio": 0.5,
+  "target_avg_degree": 1.5
+})");
+    const auto loaded_config = flyki::grouping::loadPipelineConfigFile(capped_config_path);
+    require(loaded_config.preset == flyki::grouping::PipelinePreset::Capped, "config loader reads capped preset");
+    require(loaded_config.mode == flyki::grouping::PipelineMode::Flyki, "config loader reads mode");
+    require(loaded_config.contexts == 3, "config loader reads contexts");
+    require(loaded_config.seed == 1, "config loader reads seed");
+    require(loaded_config.max_shared_ratio == 0.5, "config loader reads max shared ratio");
+    require(loaded_config.edge_weight_mode == flyki::grouping::EdgeWeightMode::Log1p, "config loader reads edge weight mode");
 
     auto overlap_config = baseSyntheticConfig(temp_root / "overlap", "overlap");
     overlap_config.true_po_path = true_po;

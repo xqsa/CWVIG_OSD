@@ -7,6 +7,11 @@ from analyze_grouping_batch import analyze
 
 
 PRESETS = ["conservative", "balanced", "capped"]
+PRESET_CONFIGS = {
+    "conservative": "conservative_ablation.json",
+    "balanced": "balanced_ablation.json",
+    "capped": "capped_default.json",
+}
 
 
 def parse_int_list(text):
@@ -53,6 +58,24 @@ def run_one(args, func, dimension, seed, contexts, preset, output_dir):
     po, oo = truth_paths(args.benchmark_root, func)
     command = [
         str(args.pipeline_exe),
+    ]
+    if args.preset_config_dir is None:
+        command.extend([
+            "--preset",
+            preset,
+        ])
+    else:
+        config_name = PRESET_CONFIGS.get(preset)
+        if config_name is None:
+            raise ValueError(f"no config file is mapped for preset: {preset}")
+        config_path = args.preset_config_dir / config_name
+        if not config_path.exists():
+            raise FileNotFoundError(f"preset config not found: {config_path}")
+        command.extend([
+            "--config",
+            str(config_path),
+        ])
+    command.extend([
         "--mode",
         "flyki",
         "--func",
@@ -65,11 +88,9 @@ def run_one(args, func, dimension, seed, contexts, preset, output_dir):
         str(seed),
         "--delta",
         str(args.delta),
-        "--preset",
-        preset,
         "--output-dir",
         str(output_dir),
-    ]
+    ])
     if po is not None and oo is not None:
         command.extend(["--true-po", str(po), "--true-oo", str(oo)])
     command.append("--print-summary")
@@ -103,6 +124,8 @@ def write_plan(args, runs, selected_runs, dry_run):
         output.write(f"seeds={','.join(str(item) for item in args.seeds)}\n")
         output.write(f"contexts={','.join(str(item) for item in args.contexts)}\n")
         output.write(f"presets={','.join(args.presets)}\n")
+        if args.preset_config_dir is not None:
+            output.write(f"preset_config_dir={args.preset_config_dir}\n")
         output.write(f"delta={args.delta}\n")
         output.write(f"planned_runs={len(runs)}\n")
         output.write(f"selected_runs={len(selected_runs)}\n")
@@ -123,6 +146,7 @@ def resolved_args():
     parser.add_argument("--delta", type=float, default=0.0001)
     parser.add_argument("--output-root", default="results/grouping_batch")
     parser.add_argument("--pipeline-exe", default="build/flyki/Release/cwvig_grouping_pipeline_cli.exe")
+    parser.add_argument("--preset-config-dir")
     parser.add_argument("--benchmark-root", default="benchmark/flyki_overlap")
     parser.add_argument("--clean", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
@@ -132,6 +156,9 @@ def resolved_args():
     args.repo_root = Path(__file__).resolve().parents[1]
     args.output_root = (args.repo_root / args.output_root).resolve()
     args.pipeline_exe = (args.repo_root / args.pipeline_exe).resolve()
+    args.preset_config_dir = (
+        (args.repo_root / args.preset_config_dir).resolve() if args.preset_config_dir else None
+    )
     args.benchmark_root = (args.repo_root / args.benchmark_root).resolve()
 
     defaults = mode_defaults(args.mode)

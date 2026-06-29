@@ -1,0 +1,7 @@
+seed,preset,runs,truth_runs,shared_zero_runs,over_shared_ge_0_8_runs,over_shared_le_0_05_runs,validation_errors_total,shared_variables_mean,shared_variables_std,over_shared_ratio_mean,over_shared_ratio_std,shared_f1_mean,shared_f1_std,shared_f1_median,mean_best_group_jaccard_mean,mean_best_group_jaccard_std,validation_errors_mean,validation_errors_std,function_evaluations_mean,function_evaluations_std
+1,balanced,1,1,0,0,0,0,6,0,0.6,0,0.25,0,0.25,0.65,0,0,0,540,0
+1,capped,1,1,0,0,0,0,5,0,0.5,0,0.285714285714,0,0.285714285714,0.374338624339,0,0,0,540,0
+1,conservative,1,1,1,0,1,0,0,0,0,0,0,0,0,0.888888888889,0,0,0,540,0
+3,balanced,1,1,0,0,0,0,5,0,0.5,0,0.285714285714,0,0.285714285714,0.733333333333,0,0,0,540,0
+3,capped,1,1,0,0,0,0,5,0,0.5,0,0.285714285714,0,0.285714285714,0.541666666667,0,0,0,540,0
+3,conservative,1,1,1,0,1,0,0,0,0,0,0,0,0,0.888888888889,0,0,0,540,0

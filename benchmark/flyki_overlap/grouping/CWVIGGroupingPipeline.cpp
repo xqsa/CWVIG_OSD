@@ -11,6 +11,8 @@
 #include <fstream>
 #include <functional>
 #include <iomanip>
+#include <map>
+#include <regex>
 #include <stdexcept>
 
 namespace flyki {
@@ -63,6 +65,48 @@ std::function<double(const std::vector<double> &)> syntheticFunction(const std::
         return flyki::probe::tinyCliqueFunction;
     }
     throw std::invalid_argument("Invalid synthetic function: " + name);
+}
+
+PipelineMode parsePipelineMode(const std::string &name)
+{
+    if (name == "synthetic") {
+        return PipelineMode::Synthetic;
+    }
+    if (name == "flyki") {
+        return PipelineMode::Flyki;
+    }
+    throw std::invalid_argument("Invalid pipeline mode: " + name);
+}
+
+std::map<std::string, std::string> readFlatJsonConfig(const std::filesystem::path &path)
+{
+    std::ifstream input(path);
+    if (!input) {
+        throw std::runtime_error("Failed to read pipeline config: " + path.string());
+    }
+    const std::string text{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+    const std::regex entry(R"json("([A-Za-z0-9_]+)"\s*:\s*("([^"]*)"|[-+0-9.eE]+|true|false))json");
+    std::map<std::string, std::string> values;
+    std::sregex_iterator iter(text.begin(), text.end(), entry);
+    const std::sregex_iterator end;
+    for (; iter != end; ++iter) {
+        values[(*iter)[1].str()] = (*iter)[3].matched ? (*iter)[3].str() : (*iter)[2].str();
+    }
+    return values;
+}
+
+bool hasValue(const std::map<std::string, std::string> &values, const std::string &key)
+{
+    return values.find(key) != values.end();
+}
+
+std::string valueOr(
+    const std::map<std::string, std::string> &values,
+    const std::string &key,
+    const std::string &fallback)
+{
+    const auto iter = values.find(key);
+    return iter == values.end() ? fallback : iter->second;
 }
 
 flyki::probe::CWVIGEstimateResult estimateEdges(const CWVIGGroupingPipelineConfig &config)
@@ -296,6 +340,62 @@ CWVIGGroupingPipelineConfig pipelineConfigForPreset(const PipelinePreset preset)
         config.max_shared_ratio = 0.5;
         config.shared_min_second_membership = 0.8;
     }
+    return config;
+}
+
+CWVIGGroupingPipelineConfig loadPipelineConfigFile(const std::filesystem::path &path)
+{
+    const auto values = readFlatJsonConfig(path);
+    auto config = pipelineConfigForPreset(parsePipelinePreset(valueOr(values, "preset", "balanced")));
+    if (hasValue(values, "mode")) {
+        config.mode = parsePipelineMode(values.at("mode"));
+    }
+    config.synthetic_function = valueOr(values, "synthetic_function", config.synthetic_function);
+    config.func = std::stoi(valueOr(values, "func", std::to_string(config.func)));
+    config.dimension_limit = static_cast<std::size_t>(std::stoull(valueOr(
+        values,
+        "dimension_limit",
+        std::to_string(config.dimension_limit))));
+    config.contexts = static_cast<std::size_t>(std::stoull(valueOr(values, "contexts", std::to_string(config.contexts))));
+    config.seed = static_cast<unsigned>(std::stoul(valueOr(values, "seed", std::to_string(config.seed))));
+    config.delta = std::stod(valueOr(values, "delta", std::to_string(config.delta)));
+    config.threshold_mode = valueOr(values, "threshold_mode", config.threshold_mode);
+    config.fixed_threshold = std::stod(valueOr(values, "fixed_threshold", std::to_string(config.fixed_threshold)));
+    config.edge_score_column = parseInteractionScoreColumn(valueOr(
+        values,
+        "edge_score_column",
+        interactionScoreColumnName(config.edge_score_column)));
+    config.edge_weight_mode = parseEdgeWeightMode(valueOr(
+        values,
+        "edge_weight_mode",
+        edgeWeightModeName(config.edge_weight_mode)));
+    config.sparsification_mode = parseSparsificationMode(valueOr(
+        values,
+        "sparsification_mode",
+        sparsificationModeName(config.sparsification_mode)));
+    config.graph_score_threshold = std::stod(valueOr(
+        values,
+        "graph_score_threshold",
+        std::to_string(config.graph_score_threshold)));
+    config.target_avg_degree = std::stod(valueOr(values, "target_avg_degree", std::to_string(config.target_avg_degree)));
+    config.top_k_per_node = static_cast<std::size_t>(std::stoull(valueOr(
+        values,
+        "top_k_per_node",
+        std::to_string(config.top_k_per_node))));
+    config.max_avg_degree = std::stod(valueOr(values, "max_avg_degree", std::to_string(config.max_avg_degree)));
+    config.membership_transform = parseMembershipTransform(valueOr(
+        values,
+        "membership_transform",
+        membershipTransformName(config.membership_transform)));
+    config.shared_rule = parseSharedVariableRule(valueOr(
+        values,
+        "shared_rule",
+        sharedVariableRuleName(config.shared_rule)));
+    config.max_shared_ratio = std::stod(valueOr(values, "max_shared_ratio", std::to_string(config.max_shared_ratio)));
+    config.shared_min_second_membership = std::stod(valueOr(
+        values,
+        "shared_min_second_membership",
+        std::to_string(config.shared_min_second_membership)));
     return config;
 }
 

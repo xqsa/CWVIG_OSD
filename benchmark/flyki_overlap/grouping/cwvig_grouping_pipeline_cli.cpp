@@ -50,7 +50,7 @@ std::string optionalArg(
 
 void printUsage()
 {
-    std::cout << "Usage: cwvig_grouping_pipeline_cli --mode synthetic|flyki --output-dir PATH "
+    std::cout << "Usage: cwvig_grouping_pipeline_cli [--config PATH] [--mode synthetic|flyki] --output-dir PATH "
                  "[--preset conservative|balanced|capped] [--synthetic-function sphere|interaction|overlap|clique] "
                  "[--func ID] [--dimension-limit K] [--contexts R] [--seed SEED] [--delta VALUE] "
                  "[--edge-score-column probability|mean_abs_normalized|mean_abs_raw] "
@@ -77,9 +77,19 @@ flyki::grouping::PipelineMode parseMode(const std::string &mode)
 flyki::grouping::CWVIGGroupingPipelineConfig configFromArgs(
     const std::map<std::string, std::string> &args)
 {
-    auto config = flyki::grouping::pipelineConfigForPreset(flyki::grouping::parsePipelinePreset(
-        optionalArg(args, "--preset", "balanced")));
-    config.mode = parseMode(requireArg(args, "--mode"));
+    const bool from_config = hasArg(args, "--config");
+    auto config = from_config
+        ? flyki::grouping::loadPipelineConfigFile(requireArg(args, "--config"))
+        : flyki::grouping::pipelineConfigForPreset(flyki::grouping::parsePipelinePreset(
+            optionalArg(args, "--preset", "balanced")));
+    if (hasArg(args, "--preset")) {
+        config.preset = flyki::grouping::parsePipelinePreset(requireArg(args, "--preset"));
+    }
+    if (hasArg(args, "--mode")) {
+        config.mode = parseMode(requireArg(args, "--mode"));
+    } else if (!from_config) {
+        config.mode = parseMode(requireArg(args, "--mode"));
+    }
     config.output_dir = requireArg(args, "--output-dir");
     config.synthetic_function = optionalArg(args, "--synthetic-function", config.synthetic_function);
     config.func = std::stoi(optionalArg(args, "--func", std::to_string(config.func)));
