@@ -126,3 +126,51 @@
   - Need original CMA-ES C/C++ distribution before `cbocco` can build.
 - 推荐下一目标：
   - Provide original CMA-ES dependency through `-DFLYKI_CMAES_DIR=<path>`, then rerun `cmake --build build/flyki --target cbocco --config Release`.
+
+## 2026-06-29 - Phase 1 Grouping IO And Metrics Core
+
+- 状态：done locally; ready for next grouping integration phase
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/grouping/GroupingData.h`
+  - `benchmark/flyki_overlap/grouping/GroupingData.cpp`
+  - `benchmark/flyki_overlap/grouping/GroupingIO.h`
+  - `benchmark/flyki_overlap/grouping/GroupingIO.cpp`
+  - `benchmark/flyki_overlap/grouping/GroupingMetrics.h`
+  - `benchmark/flyki_overlap/grouping/GroupingMetrics.cpp`
+  - `benchmark/flyki_overlap/grouping/GroupingMetricsTests.cpp`
+  - `benchmark/flyki_overlap/grouping/grouping_metrics_cli.cpp`
+  - `docs/grouping_metrics.md`
+  - `PROGRESS.md`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target grouping_metrics_tests --config Release`
+  - `cmake --build build/flyki --target grouping_metrics_cli --config Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\grouping_metrics_tests.exe`
+  - `.\build\flyki\Release\grouping_metrics_cli.exe --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt`
+- 输出：
+  - `grouping_metrics_tests`: `GroupingMetricsTests passed`
+  - `grouping_metrics_cli`: `SharedVar Precision: 1.000000`
+  - `grouping_metrics_cli`: `SharedVar Recall: 1.000000`
+  - `grouping_metrics_cli`: `SharedVar F1: 1.000000`
+  - `grouping_metrics_cli`: `True Groups: 20`
+  - `grouping_metrics_cli`: `True Total Variable Occurrences: 1000`
+  - `grouping_metrics_cli`: `True Unique Variables: 905`
+  - `grouping_metrics_cli`: `True Shared Variables From Groups: 95`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_metrics_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_metrics_cli.exe`
+  - `docs/grouping_metrics.md`
+- 关键观察：
+  - po/oo parser reads repeated `group_size + ids` records until EOF and does not hard-code 20 groups.
+  - Shared-variable metrics use the explicit `oo` overlap-variable union for truth/prediction.
+  - Group summary stats are available for both primary groups and overlap groups.
+  - `flyki_core` still builds after adding the independent `grouping_core` target.
+- 遗留风险：
+  - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from Phase 0.5.
+  - Phase 1 does not yet connect grouping IO into CBOCC; it only provides reusable, independently testable components.
+- 推荐下一目标：
+  - Add a narrow adapter layer that can feed parsed po/oo data into the existing CBOCC grouping flow without changing optimization behavior, then add CWVIG-OSD estimator stubs behind that adapter in a later phase.
