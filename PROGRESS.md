@@ -31,3 +31,50 @@
   - 当前机器 PATH 中未发现 C++ 编译器 `g++`、`clang++` 或 `cl`。
   - 未提供原始 CMA-ES C/C++ 依赖前，完整 `cbocco` 不能编译。
   - 原始 `CMAESO.cpp` 中存在 MSVC-specific `strcpy_s`，完整依赖补齐后可能需要做无算法行为变化的兼容性修正。
+
+## 2026-06-29 - Phase 0.5 Toolchain Verification And Build Retest
+
+- 状态：blocked by missing local build toolchain
+- 修改文件：
+  - `docs/build_audit.md`
+  - `PROGRESS.md`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target cbocco --config Release`
+- 工具链探测命令：
+  - `cmake --version`
+  - `where.exe cmake`
+  - `cl`
+  - `where.exe cl`
+  - `g++ --version`
+  - `where.exe g++`
+  - `clang++ --version`
+  - `where.exe clang++`
+- 运行命令：
+  - Phase 0.5 未运行优化实验；本阶段只做工具链验证和构建复验。
+- 输出：
+  - `cmake --version`: failed, `cmake` is not recognized.
+  - `where.exe cmake`: failed, `INFO: Could not find files for the given pattern(s).`
+  - `cl`: failed, `cl` is not recognized.
+  - `where.exe cl`: failed, `INFO: Could not find files for the given pattern(s).`
+  - `g++ --version`: failed, `g++` is not recognized.
+  - `where.exe g++`: failed, `INFO: Could not find files for the given pattern(s).`
+  - `clang++ --version`: failed, `clang++` is not recognized.
+  - `where.exe clang++`: failed, `INFO: Could not find files for the given pattern(s).`
+  - Common path probe found no CMake/MSYS2/LLVM compiler binaries.
+  - `vswhere` probe returned `VSWHERE_NOT_FOUND`.
+  - All three CMake build commands failed before configure because `cmake` is not in PATH.
+- 结果文件：
+  - `docs/build_audit.md`
+  - `PROGRESS.md`
+- 关键观察：
+  - No source-level build failure was reached, so no algorithm or portability source files were changed.
+  - `flyki_core` remains uncompiled in this local environment due to missing CMake/toolchain.
+  - `cbocco` remains dependency-gated and still requires original external CMA-ES headers/sources.
+- 遗留风险：
+  - Need CMake in PATH.
+  - Need one C++ compiler in PATH: MSVC `cl`, MinGW/MSYS2 `g++`, or LLVM `clang++`.
+  - Need original external CMA-ES files before full `cbocco` can build.
+- 推荐下一目标：
+  - Install/configure CMake and a C++ compiler, then rerun Phase 0.5 commands before starting grouping IO or CWVIG-OSD implementation.

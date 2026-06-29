@@ -235,3 +235,74 @@ cmake --build build/flyki --target cbocco --config Release
 After `flyki_core` is verified, the next implementation goal should be a
 grouping IO adapter that preserves the original `po/oo` file behavior before
 any CWVIG-OSD estimator or soft decomposition logic is introduced.
+
+## Phase 0.5 Toolchain Retest
+
+Date: 2026-06-29  
+Scope: toolchain verification and Phase 0 build command retest only.
+
+### Toolchain Detection Commands And Outputs
+
+Commands were run from `E:\CWVIG_OSD`.
+
+| Command | Result |
+|---|---|
+| `cmake --version` | Failed: `cmake` is not recognized as a command. |
+| `where.exe cmake` | Failed: `INFO: Could not find files for the given pattern(s).` |
+| `cl` | Failed: `cl` is not recognized as a command. |
+| `where.exe cl` | Failed: `INFO: Could not find files for the given pattern(s).` |
+| `g++ --version` | Failed: `g++` is not recognized as a command. |
+| `where.exe g++` | Failed: `INFO: Could not find files for the given pattern(s).` |
+| `clang++ --version` | Failed: `clang++` is not recognized as a command. |
+| `where.exe clang++` | Failed: `INFO: Could not find files for the given pattern(s).` |
+| Common path probe | No CMake, MSYS2 g++, UCRT64 g++, or LLVM clang++ found in common install paths checked. |
+| `vswhere` probe | Failed: `VSWHERE_NOT_FOUND`. |
+
+### Build Retest Commands And Outputs
+
+```powershell
+cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release
+cmake --build build/flyki --target flyki_core --config Release
+cmake --build build/flyki --target cbocco --config Release
+```
+
+Observed output for all three commands:
+
+```text
+cmake: The term 'cmake' is not recognized as a name of a cmdlet, function, script file, or executable program.
+```
+
+### Phase 0.5 Status
+
+- CMake configure was not reached because `cmake` is not available.
+- `flyki_core` was not compiled because configure/build tooling is unavailable.
+- `cbocco` was not compiled because configure/build tooling is unavailable.
+- The known external CMA-ES blocker still stands: `cmaes_interface.h`,
+  `boundary_transformation.h`, and the original CMA-ES implementation sources
+  are not present in `benchmark/flyki_overlap`.
+
+### Phase 0.5 Blockers
+
+1. Install or expose `cmake` in PATH.
+2. Install or expose one C++ compiler in PATH: MSVC `cl`, MinGW/MSYS2 `g++`, or
+   LLVM `clang++`.
+3. After toolchain detection succeeds, rerun the Phase 0 build commands.
+4. For full `cbocco`, provide the original external CMA-ES dependency via
+   `-DFLYKI_CMAES_DIR=<path>` or explicit `-DFLYKI_CMAES_SOURCES=...`.
+
+### Phase 0.5 Recommended Next Goal
+
+Install/configure the Windows C++ build toolchain first, then rerun only:
+
+```powershell
+cmake --version
+where.exe cmake
+g++ --version
+where.exe g++
+cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release
+cmake --build build/flyki --target flyki_core --config Release
+cmake --build build/flyki --target cbocco --config Release
+```
+
+Do not start grouping IO or CWVIG-OSD implementation until `flyki_core` has
+been verified or a source-level build blocker has been identified.
