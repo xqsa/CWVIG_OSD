@@ -78,3 +78,51 @@
   - Need original external CMA-ES files before full `cbocco` can build.
 - 推荐下一目标：
   - Install/configure CMake and a C++ compiler, then rerun Phase 0.5 commands before starting grouping IO or CWVIG-OSD implementation.
+
+## 2026-06-29 - Toolchain Install And Phase 0.5 Build Retest
+
+- 状态：partial done; `flyki_core` builds, `cbocco` blocked by external CMA-ES
+- 修改文件：
+  - `docs/build_audit.md`
+  - `PROGRESS.md`
+- 安装命令：
+  - `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force`
+  - `iwr -useb get.scoop.sh | iex`
+  - `scoop install cmake gcc llvm`
+  - `vs_BuildTools.exe --quiet --wait --norestart --nocache --installPath <user-local-path> --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended`
+- 工具链验证命令：
+  - `cmake --version`
+  - `where.exe cmake`
+  - `g++ --version`
+  - `where.exe g++`
+  - `clang++ --version`
+  - `where.exe clang++`
+  - `cmd.exe /d /s /c '"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 >nul && where cl && cl'`
+- 工具链输出：
+  - `cmake` 4.3.4 at `C:\Users\83718\scoop\shims\cmake.exe`
+  - `g++` 15.2.0 at `C:\Users\83718\scoop\apps\gcc\current\bin\g++.exe`
+  - `clang++` 22.1.8 at `C:\Users\83718\scoop\apps\llvm\current\bin\clang++.exe`
+  - `cl` 19.42.34435 at `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target cbocco --config Release`
+- 编译输出：
+  - Configure succeeded with Visual Studio 17 2022 and MSVC 19.44.35228.0.
+  - `flyki_core` succeeded and produced `E:\CWVIG_OSD\build\flyki\Release\flyki_core.lib`.
+  - `cbocco` failed by design with missing external CMA-ES files: `cmaes_interface.h`, `boundary_transformation.h`, and CMA-ES implementation source files.
+- 运行命令：
+  - No optimization experiments were run.
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\flyki_core.lib`
+  - `docs/build_audit.md`
+  - `PROGRESS.md`
+- 关键观察：
+  - Local build toolchain is now installed and usable.
+  - `cl` should be used from Developer PowerShell or after running `VsDevCmd.bat`; plain PowerShell does not automatically include the full MSVC environment.
+  - `flyki_core` is verified.
+  - Full `cbocco` remains correctly dependency-gated.
+- 遗留风险：
+  - Need original CMA-ES C/C++ distribution before `cbocco` can build.
+- 推荐下一目标：
+  - Provide original CMA-ES dependency through `-DFLYKI_CMAES_DIR=<path>`, then rerun `cmake --build build/flyki --target cbocco --config Release`.

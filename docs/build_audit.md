@@ -306,3 +306,97 @@ cmake --build build/flyki --target cbocco --config Release
 
 Do not start grouping IO or CWVIG-OSD implementation until `flyki_core` has
 been verified or a source-level build blocker has been identified.
+
+## Phase 0.5 Follow-up: Toolchain Installed And Build Retested
+
+Date: 2026-06-29  
+Scope: install requested local build tools and rerun the Phase 0 build commands.
+
+### Installed Tools
+
+Scoop was installed in the user profile and used to install:
+
+- `cmake` 4.3.4
+- `gcc` 15.2.0
+- `llvm` 22.1.8
+
+Visual Studio Build Tools was installed with the C++ workload. `cl` is available
+after activating the Visual Studio developer environment with `VsDevCmd.bat`.
+
+### Verified Toolchain Paths
+
+```text
+cmake:   C:\Users\83718\scoop\shims\cmake.exe
+g++:     C:\Users\83718\scoop\apps\gcc\current\bin\g++.exe
+clang++: C:\Users\83718\scoop\apps\llvm\current\bin\clang++.exe
+cl:      C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe
+```
+
+`cl` verification command:
+
+```powershell
+cmd.exe /d /s /c '"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 >nul && where cl && cl'
+```
+
+Observed `cl` version:
+
+```text
+Microsoft (R) C/C++ Optimizing Compiler Version 19.42.34435 for x64
+```
+
+### Build Retest After Toolchain Installation
+
+Configure command:
+
+```powershell
+cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release
+```
+
+Observed configure output:
+
+```text
+-- Building for: Visual Studio 17 2022
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- The CXX compiler identification is MSVC 19.44.35228.0
+-- Configuring done
+-- Generating done
+-- Build files have been written to: E:/CWVIG_OSD/build/flyki
+```
+
+Core build command:
+
+```powershell
+cmake --build build/flyki --target flyki_core --config Release
+```
+
+Observed result:
+
+```text
+flyki_core.vcxproj -> E:\CWVIG_OSD\build\flyki\Release\flyki_core.lib
+```
+
+Core artifact:
+
+```text
+E:\CWVIG_OSD\build\flyki\Release\flyki_core.lib
+```
+
+Full CBCCO build command:
+
+```powershell
+cmake --build build/flyki --target cbocco --config Release
+```
+
+Observed result:
+
+```text
+cbocco target is unavailable because the original external CMA-ES dependency is missing.
+Missing: "cmaes_interface.h, boundary_transformation.h, CMA-ES implementation source files"
+```
+
+### Updated Status
+
+- `flyki_core`: builds successfully with Visual Studio 17 2022 / MSVC.
+- `cbocco`: still blocked only by the documented external CMA-ES dependency.
+- No benchmark or optimizer algorithm source files were modified for this
+  toolchain installation and build retest.
