@@ -100,13 +100,43 @@ void printUsage()
 {
     std::cout << "Usage: soft_overlap_calibration_cli --edges CSV --score-column probability|mean_abs_normalized|mean_abs_raw "
                  "--use-log1p-score true|false --dimension N --mode unsupervised|oracle "
+                 "[--edge-weight-mode raw|log1p|rank_normalized|uncertainty_penalized] "
+                 "[--sparsification-mode score_threshold|top_k_per_node|mutual_top_k|target_avg_degree] "
+                 "[--top-k-per-node K] [--graph-score-threshold VALUE] [--max-avg-degree VALUE] "
                  "[--unsupervised-method quantile_score|target_avg_degree|top_edge_fraction|elbow_score] "
                  "[--score-quantile Q] [--target-avg-degree D] [--top-edge-fraction Q] "
+                 "[--membership-transform current_ratio|rank_normalized|minmax_normalized|sigmoid_centered] "
+                 "[--membership-prune-threshold VALUE] "
+                 "[--shared-rule hard_membership_only|hard_plus_second_membership|capped_shared|hard_plus_ratio] "
+                 "[--max-shared-ratio VALUE] [--shared-min-second-membership VALUE] "
                  "[--true-po PATH --true-oo PATH] "
                  "[--score-threshold-grid values|auto] [--expand-threshold-grid values|auto] "
                  "[--z-threshold-grid values|auto] [--shared-ratio-threshold-grid values|auto] "
                  "--output-report CSV --output-best-po PATH --output-best-oo PATH --output-best-z PATH "
                  "[--print-summary]\n";
+}
+
+flyki::grouping::EdgeWeightMode edgeWeightModeFromArgs(
+    const std::map<std::string, std::string> &args,
+    const bool use_log1p_score)
+{
+    if (hasArg(args, "--edge-weight-mode")) {
+        return flyki::grouping::parseEdgeWeightMode(requireArg(args, "--edge-weight-mode"));
+    }
+    return use_log1p_score ? flyki::grouping::EdgeWeightMode::Log1p : flyki::grouping::EdgeWeightMode::Raw;
+}
+
+flyki::grouping::SparsificationConfig sparsificationFromArgs(
+    const std::map<std::string, std::string> &args)
+{
+    flyki::grouping::SparsificationConfig config;
+    config.mode = flyki::grouping::parseSparsificationMode(
+        optionalArg(args, "--sparsification-mode", "score_threshold"));
+    config.score_threshold = std::stod(optionalArg(args, "--graph-score-threshold", "0"));
+    config.top_k_per_node = static_cast<std::size_t>(std::stoull(optionalArg(args, "--top-k-per-node", "0")));
+    config.target_avg_degree = std::stod(optionalArg(args, "--target-avg-degree", "0"));
+    config.max_avg_degree = std::stod(optionalArg(args, "--max-avg-degree", "0"));
+    return config;
 }
 
 flyki::grouping::SoftOverlapConfig baseConfigFromArgs(
@@ -118,9 +148,23 @@ flyki::grouping::SoftOverlapConfig baseConfigFromArgs(
     flyki::grouping::SoftOverlapConfig config;
     config.score_column = score_column;
     config.use_log1p_score = use_log1p_score;
+    config.edge_weight_mode = edgeWeightModeFromArgs(args, use_log1p_score);
+    config.sparsification_mode = flyki::grouping::parseSparsificationMode(
+        optionalArg(args, "--sparsification-mode", "score_threshold"));
     config.dimension = dimension;
     config.z_threshold = std::stod(optionalArg(args, "--z-threshold", "0.8"));
     config.shared_ratio_threshold = std::stod(optionalArg(args, "--shared-ratio-threshold", "0.7"));
+    config.top_k_per_node = static_cast<std::size_t>(std::stoull(optionalArg(args, "--top-k-per-node", "0")));
+    config.target_avg_degree = std::stod(optionalArg(args, "--target-avg-degree", "0"));
+    config.max_avg_degree = std::stod(optionalArg(args, "--max-avg-degree", "0"));
+    config.membership_transform = flyki::grouping::parseMembershipTransform(
+        optionalArg(args, "--membership-transform", "current_ratio"));
+    config.suppress_weak_memberships = parseBool(optionalArg(args, "--suppress-weak-memberships", "false"));
+    config.membership_prune_threshold = std::stod(optionalArg(args, "--membership-prune-threshold", "0"));
+    config.shared_rule = flyki::grouping::parseSharedVariableRule(optionalArg(args, "--shared-rule", "hard_plus_ratio"));
+    config.max_shared_ratio = std::stod(optionalArg(args, "--max-shared-ratio", "1"));
+    config.shared_min_second_membership = std::stod(optionalArg(args, "--shared-min-second-membership", "0"));
+    config.shared_min_membership_gap = std::stod(optionalArg(args, "--shared-min-membership-gap", "0"));
     return config;
 }
 
@@ -156,12 +200,13 @@ int main(int argc, char **argv)
         const auto score_column = flyki::grouping::parseInteractionScoreColumn(requireArg(args, "--score-column"));
         const bool use_log1p_score = parseBool(requireArg(args, "--use-log1p-score"));
         const std::size_t dimension = static_cast<std::size_t>(std::stoull(requireArg(args, "--dimension")));
+        auto base_config = baseConfigFromArgs(args, score_column, use_log1p_score, dimension);
         const auto graph = flyki::grouping::buildWeightedInteractionGraphFromCsv(
             requireArg(args, "--edges"),
             dimension,
             score_column,
-            use_log1p_score);
-        auto base_config = baseConfigFromArgs(args, score_column, use_log1p_score, dimension);
+            base_config.edge_weight_mode,
+            sparsificationFromArgs(args));
         const auto truth = truthFromArgs(args, dimension);
         const auto mode = requireArg(args, "--mode");
 
@@ -224,6 +269,9 @@ int main(int argc, char **argv)
         if (hasArg(args, "--print-summary")) {
             std::cout << "Mode: " << mode << '\n'
                       << "Rows: " << rows.size() << '\n'
+                      << "Graph Edges: " << graph.edges().size() << '\n'
+                      << "Edge Weight Mode: " << flyki::grouping::edgeWeightModeName(base_config.edge_weight_mode) << '\n'
+                      << "Sparsification Mode: " << flyki::grouping::sparsificationModeName(base_config.sparsification_mode) << '\n'
                       << "Best Score Threshold: " << best.score_threshold << '\n'
                       << "Best Expand Threshold: " << best.expand_threshold << '\n'
                       << "Best Z Threshold: " << best.z_threshold << '\n'
@@ -231,6 +279,9 @@ int main(int argc, char **argv)
                       << "Groups: " << best.groups << '\n'
                       << "Shared Variables: " << best.shared_variables << '\n'
                       << "Over Shared Ratio: " << best.over_shared_ratio << '\n'
+                      << "Shared Pruned By Cap: " << best.shared_diagnostics.pruned_by_cap << '\n'
+                      << "Shared Confidence Mean: " << best.shared_diagnostics.confidence_mean << '\n'
+                      << "Average Top2/Top1 Ratio: " << best.shared_diagnostics.average_top2_top1_ratio << '\n'
                       << "SharedVar F1: " << best.shared_metrics.f1 << '\n'
                       << "Mean Best Group Jaccard: " << best.mean_best_group_jaccard << '\n';
         }

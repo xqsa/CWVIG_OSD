@@ -202,6 +202,12 @@ add_executable(soft_overlap_calibration_tests
 target_link_libraries(soft_overlap_calibration_tests PRIVATE soft_overlap_core)
 target_compile_features(soft_overlap_calibration_tests PRIVATE cxx_std_17)
 
+add_executable(soft_overlap_pruning_tests
+    grouping/SoftOverlapPruningTests.cpp
+)
+target_link_libraries(soft_overlap_pruning_tests PRIVATE soft_overlap_core)
+target_compile_features(soft_overlap_pruning_tests PRIVATE cxx_std_17)
+
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")
 

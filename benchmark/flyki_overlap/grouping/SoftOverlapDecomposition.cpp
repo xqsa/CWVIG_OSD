@@ -3,6 +3,7 @@
 #include "grouping/GroupingIO.h"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <numeric>
 #include <stdexcept>
@@ -22,6 +23,25 @@ double affinityMembership(const double affinity)
         return 0.0;
     }
     return clamp01(affinity / (1.0 + affinity));
+}
+
+double transformedMembership(
+    const double affinity,
+    const MembershipTransform transform)
+{
+    if (affinity <= 0.0) {
+        return 0.0;
+    }
+    switch (transform) {
+    case MembershipTransform::CurrentRatio:
+        return affinityMembership(affinity);
+    case MembershipTransform::RankNormalized:
+    case MembershipTransform::MinmaxNormalized:
+        return clamp01(affinity);
+    case MembershipTransform::SigmoidCentered:
+        return 1.0 / (1.0 + std::exp(-(affinity - 0.5) * 8.0));
+    }
+    return affinityMembership(affinity);
 }
 
 double averageAffinity(
@@ -125,7 +145,8 @@ void addSingletonsForUncovered(
 
 std::vector<std::vector<double>> buildZ(
     const WeightedInteractionGraph &graph,
-    const std::vector<std::set<std::size_t>> &communities)
+    const std::vector<std::set<std::size_t>> &communities,
+    const SoftOverlapConfig &config)
 {
     std::vector<std::vector<double>> z(graph.dimension(), std::vector<double>(communities.size(), 0.0));
     for (std::size_t group_index = 0; group_index < communities.size(); ++group_index) {
@@ -133,7 +154,10 @@ std::vector<std::vector<double>> buildZ(
         for (std::size_t variable = 0; variable < graph.dimension(); ++variable) {
             z[variable][group_index] = community.count(variable) != 0
                 ? 1.0
-                : affinityMembership(averageAffinity(graph, variable, community));
+                : transformedMembership(averageAffinity(graph, variable, community), config.membership_transform);
+            if (config.suppress_weak_memberships && z[variable][group_index] < config.membership_prune_threshold) {
+                z[variable][group_index] = 0.0;
+            }
         }
     }
     return z;
@@ -165,7 +189,8 @@ std::vector<std::vector<int>> groupsFromZ(
 std::set<int> sharedVariablesFromGroupsAndZ(
     const std::vector<std::vector<int>> &groups,
     const std::vector<std::vector<double>> &z,
-    const double shared_ratio_threshold)
+    const SoftOverlapConfig &config,
+    SharedVariableDiagnostics &diagnostics)
 {
     std::vector<std::size_t> counts(z.size(), 0);
     for (const auto &group : groups) {
@@ -176,18 +201,87 @@ std::set<int> sharedVariablesFromGroupsAndZ(
         }
     }
 
-    std::set<int> shared;
+    struct Candidate {
+        int variable = 0;
+        double confidence = 0.0;
+        bool selected = false;
+    };
+    std::vector<Candidate> candidates;
+    double top1_sum = 0.0;
+    double top2_sum = 0.0;
+    double ratio_sum = 0.0;
     for (std::size_t variable = 0; variable < z.size(); ++variable) {
-        if (counts[variable] > 1) {
-            shared.insert(static_cast<int>(variable));
-            continue;
-        }
         auto memberships = z[variable];
         std::sort(memberships.begin(), memberships.end(), std::greater<double>());
-        if (memberships.size() >= 2 && memberships[0] > 0.0
-            && memberships[1] / memberships[0] >= shared_ratio_threshold) {
-            shared.insert(static_cast<int>(variable));
+        const double top1 = memberships.empty() ? 0.0 : memberships[0];
+        const double top2 = memberships.size() < 2 ? 0.0 : memberships[1];
+        const double ratio = top1 == 0.0 ? 0.0 : top2 / top1;
+        top1_sum += top1;
+        top2_sum += top2;
+        ratio_sum += ratio;
+
+        const bool hard = counts[variable] > 1;
+        bool selected = false;
+        if (config.shared_rule == SharedVariableRule::HardMembershipOnly) {
+            selected = hard;
+        } else if (config.shared_rule == SharedVariableRule::HardPlusSecondMembership
+            || config.shared_rule == SharedVariableRule::CappedShared) {
+            const bool second_ok = top2 >= config.shared_min_second_membership
+                && ratio >= config.shared_ratio_threshold
+                && (config.shared_min_membership_gap <= 0.0 || (top1 - top2) <= config.shared_min_membership_gap);
+            selected = hard || second_ok;
+        } else {
+            selected = hard || (memberships.size() >= 2 && top1 > 0.0 && ratio >= config.shared_ratio_threshold);
         }
+        if (config.require_multi_group_hard_membership_for_shared) {
+            selected = hard;
+        }
+        candidates.push_back({static_cast<int>(variable), std::max(top2, ratio), selected});
+    }
+
+    std::sort(candidates.begin(), candidates.end(), [](const auto &left, const auto &right) {
+        if (left.confidence != right.confidence) {
+            return left.confidence > right.confidence;
+        }
+        return left.variable < right.variable;
+    });
+
+    std::set<int> shared;
+    const std::size_t cap = config.shared_rule == SharedVariableRule::CappedShared
+        ? static_cast<std::size_t>(std::floor(config.max_shared_ratio * static_cast<double>(z.size())))
+        : z.size();
+    std::size_t accepted = 0;
+    for (const auto &candidate : candidates) {
+        if (!candidate.selected) {
+            continue;
+        }
+        if (accepted < cap) {
+            shared.insert(candidate.variable);
+            ++accepted;
+        } else {
+            ++diagnostics.pruned_by_cap;
+        }
+    }
+
+    diagnostics.average_top1_membership = z.empty() ? 0.0 : top1_sum / static_cast<double>(z.size());
+    diagnostics.average_top2_membership = z.empty() ? 0.0 : top2_sum / static_cast<double>(z.size());
+    diagnostics.average_top2_top1_ratio = z.empty() ? 0.0 : ratio_sum / static_cast<double>(z.size());
+    for (const auto &candidate : candidates) {
+        if (!candidate.selected) {
+            continue;
+        }
+        diagnostics.top_shared_candidates.push_back({candidate.variable, candidate.confidence});
+    }
+    if (!diagnostics.top_shared_candidates.empty()) {
+        double sum = 0.0;
+        diagnostics.confidence_min = diagnostics.top_shared_candidates.front().second;
+        diagnostics.confidence_max = diagnostics.top_shared_candidates.front().second;
+        for (const auto &candidate : diagnostics.top_shared_candidates) {
+            diagnostics.confidence_min = std::min(diagnostics.confidence_min, candidate.second);
+            diagnostics.confidence_max = std::max(diagnostics.confidence_max, candidate.second);
+            sum += candidate.second;
+        }
+        diagnostics.confidence_mean = sum / static_cast<double>(diagnostics.top_shared_candidates.size());
     }
     return shared;
 }
@@ -228,6 +322,70 @@ void validateConfig(const WeightedInteractionGraph &graph, const SoftOverlapConf
 
 }  // namespace
 
+MembershipTransform parseMembershipTransform(const std::string &name)
+{
+    if (name == "current_ratio") {
+        return MembershipTransform::CurrentRatio;
+    }
+    if (name == "rank_normalized") {
+        return MembershipTransform::RankNormalized;
+    }
+    if (name == "minmax_normalized") {
+        return MembershipTransform::MinmaxNormalized;
+    }
+    if (name == "sigmoid_centered") {
+        return MembershipTransform::SigmoidCentered;
+    }
+    throw std::invalid_argument("Invalid membership transform: " + name);
+}
+
+std::string membershipTransformName(const MembershipTransform transform)
+{
+    switch (transform) {
+    case MembershipTransform::CurrentRatio:
+        return "current_ratio";
+    case MembershipTransform::RankNormalized:
+        return "rank_normalized";
+    case MembershipTransform::MinmaxNormalized:
+        return "minmax_normalized";
+    case MembershipTransform::SigmoidCentered:
+        return "sigmoid_centered";
+    }
+    return "unknown";
+}
+
+SharedVariableRule parseSharedVariableRule(const std::string &name)
+{
+    if (name == "hard_membership_only") {
+        return SharedVariableRule::HardMembershipOnly;
+    }
+    if (name == "hard_plus_second_membership") {
+        return SharedVariableRule::HardPlusSecondMembership;
+    }
+    if (name == "capped_shared") {
+        return SharedVariableRule::CappedShared;
+    }
+    if (name == "hard_plus_ratio") {
+        return SharedVariableRule::HardPlusRatio;
+    }
+    throw std::invalid_argument("Invalid shared rule: " + name);
+}
+
+std::string sharedVariableRuleName(const SharedVariableRule rule)
+{
+    switch (rule) {
+    case SharedVariableRule::HardPlusRatio:
+        return "hard_plus_ratio";
+    case SharedVariableRule::HardMembershipOnly:
+        return "hard_membership_only";
+    case SharedVariableRule::HardPlusSecondMembership:
+        return "hard_plus_second_membership";
+    case SharedVariableRule::CappedShared:
+        return "capped_shared";
+    }
+    return "unknown";
+}
+
 SoftOverlapResult decomposeSoftOverlap(
     const WeightedInteractionGraph &graph,
     const SoftOverlapConfig &config)
@@ -245,12 +403,13 @@ SoftOverlapResult decomposeSoftOverlap(
     }
 
     SoftOverlapResult result;
-    result.z = buildZ(graph, communities);
+    result.z = buildZ(graph, communities, config);
     result.groups = groupsFromZ(result.z, config.z_threshold, config.min_group_size);
     result.shared_variables = sharedVariablesFromGroupsAndZ(
         result.groups,
         result.z,
-        config.shared_ratio_threshold);
+        config,
+        result.shared_diagnostics);
     result.overlap_groups = overlapGroupsFromShared(result.groups, result.shared_variables);
     return result;
 }

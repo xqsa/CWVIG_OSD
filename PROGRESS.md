@@ -670,3 +670,101 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
 - 推荐下一目标：
   - Improve unsupervised thresholding to penalize over-shared solutions without using truth labels, for example by adding a target shared-ratio or sparsity regularizer before optimizer integration.
+
+## 2026-06-29 - Phase 4C Uncertainty-Aware Graph Sparsification And Shared-Variable Pruning
+
+- 状态：done locally; pruning tests, synthetic CLI smoke, and Flyki small-subset comparisons verified
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/grouping/WeightedInteractionGraph.h`
+  - `benchmark/flyki_overlap/grouping/WeightedInteractionGraph.cpp`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapDecomposition.h`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapDecomposition.cpp`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapCalibration.h`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapCalibration.cpp`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapPruningTests.cpp`
+  - `benchmark/flyki_overlap/grouping/soft_overlap_cli.cpp`
+  - `benchmark/flyki_overlap/grouping/soft_overlap_calibration_cli.cpp`
+  - `docs/soft_overlap_pruning.md`
+  - `PROGRESS.md`
+- TDD RED 命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target soft_overlap_pruning_tests --config Release`
+- TDD RED 输出：
+  - configure succeeded
+  - build failed as expected before implementation because `SoftOverlapConfig` had no pruning/membership enums and `WeightedInteractionGraph` had no `EdgeWeightMode` or `SparsificationConfig`.
+- 编译命令：
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target soft_overlap_pruning_tests --config Release`
+  - `cmake --build build/flyki --target soft_overlap_tests --config Release`
+  - `cmake --build build/flyki --target soft_overlap_calibration_tests --config Release`
+  - `cmake --build build/flyki --target soft_overlap_cli --config Release`
+  - `cmake --build build/flyki --target soft_overlap_calibration_cli --config Release`
+  - `cmake --build build/flyki --target cwvig_estimator_cli --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\soft_overlap_pruning_tests.exe`
+  - `.\build\flyki\Release\soft_overlap_tests.exe`
+  - `.\build\flyki\Release\soft_overlap_calibration_tests.exe`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode flyki --func 1 --dimension-limit 10 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase4c_flyki_f1_edges.csv`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4c_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score false --edge-weight-mode rank_normalized --sparsification-mode mutual_top_k --top-k-per-node 1 --max-avg-degree 2 --dimension 10 --mode unsupervised --unsupervised-method quantile_score --score-quantile 0.75 --membership-transform current_ratio --shared-rule hard_plus_second_membership --shared-min-second-membership 0.8 --max-shared-ratio 0.5 --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-report .codex\phase4c_flyki_rank_mutual_report.csv --output-best-po .codex\phase4c_flyki_rank_mutual_groups.txt --output-best-oo .codex\phase4c_flyki_rank_mutual_overlap.txt --output-best-z .codex\phase4c_flyki_rank_mutual_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4c_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score false --edge-weight-mode uncertainty_penalized --sparsification-mode target_avg_degree --target-avg-degree 1.0 --max-avg-degree 2 --dimension 10 --mode unsupervised --unsupervised-method target_avg_degree --membership-transform current_ratio --shared-rule hard_plus_second_membership --shared-min-second-membership 0.8 --max-shared-ratio 0.5 --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-report .codex\phase4c_flyki_uncertainty_targetdeg_report.csv --output-best-po .codex\phase4c_flyki_uncertainty_targetdeg_groups.txt --output-best-oo .codex\phase4c_flyki_uncertainty_targetdeg_overlap.txt --output-best-z .codex\phase4c_flyki_uncertainty_targetdeg_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4c_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score false --edge-weight-mode log1p --sparsification-mode score_threshold --dimension 10 --mode unsupervised --unsupervised-method quantile_score --score-quantile 0.9 --membership-transform sigmoid_centered --shared-rule capped_shared --max-shared-ratio 0.5 --shared-min-second-membership 0.8 --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-report .codex\phase4c_flyki_log1p_capped_report.csv --output-best-po .codex\phase4c_flyki_log1p_capped_groups.txt --output-best-oo .codex\phase4c_flyki_log1p_capped_overlap.txt --output-best-z .codex\phase4c_flyki_log1p_capped_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4c_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score false --edge-weight-mode raw --sparsification-mode score_threshold --dimension 10 --mode unsupervised --unsupervised-method quantile_score --score-quantile 0.75 --membership-transform current_ratio --shared-rule hard_plus_ratio --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-report .codex\phase4c_flyki_raw_phase4a_report.csv --output-best-po .codex\phase4c_flyki_raw_phase4a_groups.txt --output-best-oo .codex\phase4c_flyki_raw_phase4a_overlap.txt --output-best-z .codex\phase4c_flyki_raw_phase4a_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4c_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score true --edge-weight-mode log1p --sparsification-mode score_threshold --dimension 10 --mode unsupervised --unsupervised-method quantile_score --score-quantile 0.75 --membership-transform current_ratio --shared-rule hard_plus_ratio --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-report .codex\phase4c_flyki_log1p_phase4b_report.csv --output-best-po .codex\phase4c_flyki_log1p_phase4b_groups.txt --output-best-oo .codex\phase4c_flyki_log1p_phase4b_overlap.txt --output-best-z .codex\phase4c_flyki_log1p_phase4b_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4c_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score true --edge-weight-mode log1p --sparsification-mode score_threshold --dimension 10 --mode oracle --membership-transform current_ratio --shared-rule hard_plus_ratio --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --score-threshold-grid auto --expand-threshold-grid auto --z-threshold-grid auto --shared-ratio-threshold-grid auto --output-report .codex\phase4c_flyki_log1p_phase4b_oracle_report.csv --output-best-po .codex\phase4c_flyki_log1p_phase4b_oracle_groups.txt --output-best-oo .codex\phase4c_flyki_log1p_phase4b_oracle_overlap.txt --output-best-z .codex\phase4c_flyki_log1p_phase4b_oracle_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_cli.exe --edges .codex\phase4c_synthetic_path_edges.csv --score-column mean_abs_normalized --score-threshold 0.7 --use-log1p-score false --edge-weight-mode raw --sparsification-mode score_threshold --expand-threshold 0.7 --merge-jaccard-threshold 0.8 --z-threshold 0.8 --shared-ratio-threshold 0.7 --dimension 3 --membership-transform current_ratio --shared-rule hard_plus_second_membership --shared-min-second-membership 0.8 --output-po .codex\phase4c_synthetic_path_groups.txt --output-oo .codex\phase4c_synthetic_path_overlap.txt --output-z .codex\phase4c_synthetic_path_z.csv --print-summary`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po .codex\phase4c_synthetic_path_groups.txt --oo .codex\phase4c_synthetic_path_overlap.txt --print-summary --dump-shared-map .codex\phase4c_synthetic_path_shared_map.csv`
+- 输出：
+  - `soft_overlap_pruning_tests`: `SoftOverlapPruningTests passed`
+  - `soft_overlap_tests`: `SoftOverlapDecompositionTests passed`
+  - `soft_overlap_calibration_tests`: `SoftOverlapCalibrationTests passed`
+  - Flyki estimator: `Edges Written: 45`, `Threshold: 0.5`, `FE Count: 540`
+  - Phase 4A raw-style baseline: `Graph Edges: 45`, `Groups: 5`, `Shared Variables: 10`, `Over Shared Ratio: 1`, `SharedVar F1: 0.333333`
+  - Phase 4B log1p unsupervised baseline: `Graph Edges: 45`, `Groups: 5`, `Shared Variables: 10`, `Over Shared Ratio: 1`, `SharedVar F1: 0.333333`
+  - Phase 4B log1p oracle diagnostic: `Rows: 81`, `Graph Edges: 45`, `Groups: 2`, `Shared Variables: 4`, `Over Shared Ratio: 0.4`, `SharedVar F1: 0.666667`
+  - 4C rank-normalized mutual-top-k: `Graph Edges: 2`, `Groups: 9`, `Shared Variables: 0`, `Over Shared Ratio: 0`, `Average Top2/Top1 Ratio: 0.0888889`
+  - 4C uncertainty-penalized target-degree: `Graph Edges: 5`, `Groups: 7`, `Shared Variables: 3`, `Over Shared Ratio: 0.3`, `Average Top2/Top1 Ratio: 0.32144`
+  - 4C log1p capped-shared: `Graph Edges: 45`, `Groups: 5`, `Shared Variables: 5`, `Over Shared Ratio: 0.5`, `Shared Pruned By Cap: 5`
+  - synthetic path CLI: `Dimension: 3`, `Graph Edges: 2`, `Groups: 2`, `Shared Variables: 1`, `Shared Pruned By Cap: 0`
+  - synthetic explicit loader: `Number Of Groups: 2`, `Dimension: 3`, `Unique Variables: 3`, `Shared Variables: 1`, `Validation Errors: 0`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_pruning_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_cli.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_calibration_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_f1_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_rank_mutual_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_rank_mutual_groups.txt`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_rank_mutual_overlap.txt`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_rank_mutual_z.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_uncertainty_targetdeg_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_uncertainty_targetdeg_groups.txt`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_uncertainty_targetdeg_overlap.txt`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_uncertainty_targetdeg_z.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_log1p_capped_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_log1p_capped_groups.txt`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_log1p_capped_overlap.txt`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_log1p_capped_z.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_raw_phase4a_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_log1p_phase4b_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_flyki_log1p_phase4b_oracle_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4c_synthetic_path_groups.txt`
+  - `E:\CWVIG_OSD\.codex\phase4c_synthetic_path_overlap.txt`
+  - `E:\CWVIG_OSD\.codex\phase4c_synthetic_path_z.csv`
+  - `docs/soft_overlap_pruning.md`
+- 关键观察：
+  - `EdgeWeightMode` now supports raw, log1p, rank-normalized, and uncertainty-penalized weighting.
+  - `SparsificationConfig` now supports threshold, top-k-per-node, mutual-top-k, target average degree, and max average degree guard.
+  - `SharedVariableDiagnostics` records confidence range/mean, cap-pruned count, and average top1/top2 evidence.
+  - `hard_plus_ratio` preserves previous behavior, while stricter shared rules let experiments reduce over-sharing without changing optimizer logic.
+  - On the same Flyki F1 10D smoke file, raw/log1p baselines still over-share all 10 variables; 4C settings reduce shared variables to 0, 3, or 5 depending on pruning strength.
+  - Generated 4C `po/oo` files are readable by the existing explicit grouping loader with `Validation Errors: 0`.
+  - No SharedVariablePolicy, CBOG_CBD, CMAESO, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - `rank_normalized + mutual_top_k` can under-share on tiny graphs; it is useful as a sparse diagnostic, not a final default.
+  - `uncertainty_penalized + target_avg_degree` reduces over-sharing but still needs larger-dimension validation.
+  - `capped_shared` enforces a cap directly; the cap value is a hyperparameter and should not be tuned with test labels in final experiments.
+  - Full 905D calibration remains intentionally skipped.
+  - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
+- 推荐下一目标：
+  - Add a real affiliation-model refinement loop for `Z` or a label-free sparsity objective, then only after that start wiring shared-variable confidence into a CC adapter.

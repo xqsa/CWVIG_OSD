@@ -18,6 +18,28 @@ enum class InteractionScoreColumn {
     MeanAbsRaw,
 };
 
+enum class EdgeWeightMode {
+    Raw,
+    Log1p,
+    RankNormalized,
+    UncertaintyPenalized,
+};
+
+enum class SparsificationMode {
+    ScoreThreshold,
+    TopKPerNode,
+    MutualTopK,
+    TargetAvgDegree,
+};
+
+struct SparsificationConfig {
+    SparsificationMode mode = SparsificationMode::ScoreThreshold;
+    double score_threshold = 0.0;
+    std::size_t top_k_per_node = 0;
+    double target_avg_degree = 0.0;
+    double max_avg_degree = 0.0;
+};
+
 struct WeightedInteractionEdge {
     std::size_t i = 0;
     std::size_t j = 0;
@@ -42,9 +64,26 @@ private:
 
 InteractionScoreColumn parseInteractionScoreColumn(const std::string &name);
 std::string interactionScoreColumnName(InteractionScoreColumn column);
+EdgeWeightMode parseEdgeWeightMode(const std::string &name);
+std::string edgeWeightModeName(EdgeWeightMode mode);
+SparsificationMode parseSparsificationMode(const std::string &name);
+std::string sparsificationModeName(SparsificationMode mode);
 
 WeightedInteractionGraph buildWeightedInteractionGraph(
     const std::vector<flyki::probe::CWVIGEdge> &edges,
+    std::size_t dimension,
+    InteractionScoreColumn column,
+    bool use_log1p_score);
+
+WeightedInteractionGraph buildWeightedInteractionGraph(
+    const std::vector<flyki::probe::CWVIGEdge> &edges,
+    std::size_t dimension,
+    InteractionScoreColumn column,
+    EdgeWeightMode edge_weight_mode,
+    const SparsificationConfig &sparsification);
+
+WeightedInteractionGraph buildWeightedInteractionGraphFromCsv(
+    const std::string &path,
     std::size_t dimension,
     InteractionScoreColumn column,
     bool use_log1p_score);
@@ -53,7 +92,8 @@ WeightedInteractionGraph buildWeightedInteractionGraphFromCsv(
     const std::string &path,
     std::size_t dimension,
     InteractionScoreColumn column,
-    bool use_log1p_score);
+    EdgeWeightMode edge_weight_mode,
+    const SparsificationConfig &sparsification);
 
 }  // namespace grouping
 }  // namespace flyki

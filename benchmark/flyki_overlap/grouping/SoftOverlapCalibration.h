@@ -49,6 +49,7 @@ struct SoftOverlapCalibrationRow {
     SetMetrics shared_metrics;
     double mean_best_group_jaccard = 0.0;
     std::size_t exact_group_matches = 0;
+    SharedVariableDiagnostics shared_diagnostics;
 };
 
 struct OracleCalibrationResult {

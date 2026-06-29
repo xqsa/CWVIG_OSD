@@ -292,6 +292,7 @@ SoftOverlapCalibrationRow evaluateSoftOverlapGrouping(
     row.singleton_count = countSingletons(result.groups);
     row.mean_group_size = summary.mean_group_size;
     row.max_group_size = summary.max_group_size;
+    row.shared_diagnostics = result.shared_diagnostics;
     row.shared_metrics = calculateSetMetrics(
         restrictSharedVariables(true_overlap_groups, dimension),
         result.shared_variables);
@@ -372,7 +373,9 @@ void writeCalibrationReportCsv(
     output << "score_column,use_log1p_score,score_threshold,expand_threshold,z_threshold,"
               "shared_ratio_threshold,groups,unique_variables,shared_variables,over_shared_ratio,"
               "singleton_count,mean_group_size,max_group_size,shared_precision,shared_recall,"
-              "shared_f1,mean_best_group_jaccard,exact_group_matches\n";
+              "shared_f1,mean_best_group_jaccard,exact_group_matches,shared_confidence_min,"
+              "shared_confidence_mean,shared_confidence_max,shared_pruned_by_cap,"
+              "average_top1_membership,average_top2_membership,average_top2_top1_ratio\n";
     for (const auto &row : rows) {
         output << interactionScoreColumnName(row.score_column) << ','
                << (row.use_log1p_score ? "true" : "false") << ','
@@ -391,7 +394,14 @@ void writeCalibrationReportCsv(
                << row.shared_metrics.recall << ','
                << row.shared_metrics.f1 << ','
                << row.mean_best_group_jaccard << ','
-               << row.exact_group_matches << '\n';
+               << row.exact_group_matches << ','
+               << row.shared_diagnostics.confidence_min << ','
+               << row.shared_diagnostics.confidence_mean << ','
+               << row.shared_diagnostics.confidence_max << ','
+               << row.shared_diagnostics.pruned_by_cap << ','
+               << row.shared_diagnostics.average_top1_membership << ','
+               << row.shared_diagnostics.average_top2_membership << ','
+               << row.shared_diagnostics.average_top2_top1_ratio << '\n';
     }
 }
 
