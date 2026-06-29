@@ -82,6 +82,36 @@ def run_one(args, func, dimension, seed, contexts, preset, output_dir):
         raise RuntimeError(f"pipeline failed for {output_dir}: {completed.stderr.strip()}")
 
 
+def planned_runs(args):
+    runs = []
+    for func in args.functions:
+        for dimension in args.dimension_limits:
+            for seed in args.seeds:
+                for contexts in args.contexts:
+                    for preset in args.presets:
+                        runs.append((func, dimension, seed, contexts, preset))
+    return runs
+
+
+def write_plan(args, runs, selected_runs, dry_run):
+    args.output_root.mkdir(parents=True, exist_ok=True)
+    path = args.output_root / "batch_plan.txt"
+    with path.open("w", encoding="utf-8") as output:
+        output.write(f"mode={args.mode}\n")
+        output.write(f"functions={','.join(str(item) for item in args.functions)}\n")
+        output.write(f"dimension_limits={','.join(str(item) for item in args.dimension_limits)}\n")
+        output.write(f"seeds={','.join(str(item) for item in args.seeds)}\n")
+        output.write(f"contexts={','.join(str(item) for item in args.contexts)}\n")
+        output.write(f"presets={','.join(args.presets)}\n")
+        output.write(f"delta={args.delta}\n")
+        output.write(f"planned_runs={len(runs)}\n")
+        output.write(f"selected_runs={len(selected_runs)}\n")
+        output.write(f"dry_run={'true' if dry_run else 'false'}\n")
+        for func, dimension, seed, contexts, preset in selected_runs:
+            output.write(f"{run_name(func, dimension, seed, contexts, preset)}\n")
+    return path
+
+
 def resolved_args():
     parser = argparse.ArgumentParser(description="Run CWVIG grouping pipeline batch experiments.")
     parser.add_argument("--mode", choices=["smoke", "medium", "custom"], default="smoke")
@@ -95,6 +125,8 @@ def resolved_args():
     parser.add_argument("--pipeline-exe", default="build/flyki/Release/cwvig_grouping_pipeline_cli.exe")
     parser.add_argument("--benchmark-root", default="benchmark/flyki_overlap")
     parser.add_argument("--clean", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--max-runs", type=int, default=0)
     args = parser.parse_args()
 
     args.repo_root = Path(__file__).resolve().parents[1]
@@ -119,22 +151,32 @@ def main():
         shutil.rmtree(args.output_root)
     runs_root = args.output_root / "runs"
     runs_root.mkdir(parents=True, exist_ok=True)
+    runs = planned_runs(args)
+    selected_runs = runs[: args.max_runs] if args.max_runs > 0 else runs
+    plan_path = write_plan(args, runs, selected_runs, args.dry_run)
+    if args.dry_run:
+        for func, dimension, seed, contexts, preset in selected_runs:
+            print(run_name(func, dimension, seed, contexts, preset))
+        print(f"planned_runs={len(runs)}")
+        print(f"selected_runs={len(selected_runs)}")
+        print(f"batch_plan={plan_path}")
+        return
 
     total = 0
-    for func in args.functions:
-        for dimension in args.dimension_limits:
-            for seed in args.seeds:
-                for contexts in args.contexts:
-                    for preset in args.presets:
-                        output_dir = runs_root / run_name(func, dimension, seed, contexts, preset)
-                        print(f"running {output_dir.relative_to(args.repo_root)}")
-                        run_one(args, func, dimension, seed, contexts, preset, output_dir)
-                        total += 1
+    for func, dimension, seed, contexts, preset in selected_runs:
+        output_dir = runs_root / run_name(func, dimension, seed, contexts, preset)
+        print(f"running {output_dir.relative_to(args.repo_root)}")
+        run_one(args, func, dimension, seed, contexts, preset, output_dir)
+        total += 1
 
-    summary_path, preset_path, report_path = analyze(args.output_root)
+    summary_path, preset_path, by_dimension_path, by_context_path, by_seed_path, report_path = analyze(args.output_root)
     print(f"runs={total}")
+    print(f"batch_plan={plan_path}")
     print(f"summary={summary_path}")
     print(f"preset_summary={preset_path}")
+    print(f"by_dimension_preset={by_dimension_path}")
+    print(f"by_context_preset={by_context_path}")
+    print(f"by_seed_preset={by_seed_path}")
     print(f"default_preset_selection={report_path}")
 
 

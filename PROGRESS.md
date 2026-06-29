@@ -907,3 +907,76 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
 - 推荐下一目标：
   - Run medium batch and use its stability evidence to decide whether `balanced` should remain the default candidate or whether `capped` should become the documented default before any CBOCC method switch.
+
+## 2026-06-29 - Phase 5C Medium Grouping Batch Stability Analysis
+
+- 状态：done locally; medium batch, stability reports, loader validation, and docs verified
+- 修改文件：
+  - `experiments/run_grouping_batch.py`
+  - `experiments/analyze_grouping_batch.py`
+  - `docs/grouping_batch_medium.md`
+  - `PROGRESS.md`
+  - `results/grouping_batch_medium/summary.csv`
+  - `results/grouping_batch_medium/preset_summary.csv`
+  - `results/grouping_batch_medium/by_dimension_preset.csv`
+  - `results/grouping_batch_medium/by_context_preset.csv`
+  - `results/grouping_batch_medium/by_seed_preset.csv`
+  - `results/grouping_batch_medium/default_preset_selection.md`
+  - `results/grouping_batch_medium/batch_plan.txt`
+- TDD RED 命令：
+  - `C:\Windows\py.exe -3 experiments\run_grouping_batch.py --mode medium --output-root results\grouping_batch_medium --dry-run`
+  - `C:\Windows\py.exe -3 experiments\analyze_grouping_batch.py --output-root results\grouping_batch_medium`
+- TDD RED 输出：
+  - runner initially failed as expected with `unrecognized arguments: --dry-run`.
+  - analyzer initially lacked the new grouped stability outputs and smoke-vs-medium fields required for Phase 5C.
+- 编译命令：
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build build/flyki --target cwvig_grouping_pipeline_cli --config Release`
+- 编译结果：
+  - CMake configure/generate completed successfully.
+  - Built target `cwvig_grouping_pipeline_cli`.
+  - Prerequisite executable: `E:\CWVIG_OSD\build\flyki\Release\cwvig_grouping_pipeline_cli.exe`
+- 运行命令：
+  - `C:\Windows\py.exe -3 -m py_compile experiments\run_grouping_batch.py experiments\analyze_grouping_batch.py`
+  - `C:\Windows\py.exe -3 experiments\run_grouping_batch.py --mode medium --output-root results\grouping_batch_medium_dry --dry-run`
+  - `C:\Windows\py.exe -3 experiments\run_grouping_batch.py --mode medium --output-root results\grouping_batch_medium --clean`
+  - `C:\Windows\py.exe -3 experiments\analyze_grouping_batch.py --output-root results\grouping_batch_medium`
+  - `$failed = 0; Get-ChildItem -Path results\grouping_batch_medium\runs -Directory | ForEach-Object { $po = Join-Path $_.FullName 'predicted_groups.txt'; $oo = Join-Path $_.FullName 'predicted_overlap.txt'; $out = .\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po $po --oo $oo --print-summary; $line = ($out | Select-String 'Validation Errors'); if ($line -notmatch 'Validation Errors: 0') { $failed += 1; "$($_.Name): $line" } }; "loader_failed=$failed"`
+- 输出：
+  - dry-run planned `72` runs and wrote `E:\CWVIG_OSD\results\grouping_batch_medium_dry\batch_plan.txt`.
+  - medium batch ran `72` pipeline jobs.
+  - analyzer regenerated all six report files successfully.
+  - explicit loader validation returned `loader_failed=0` for all 72 predicted `po/oo` pairs.
+- 结果文件：
+  - `E:\CWVIG_OSD\results\grouping_batch_medium\summary.csv`
+  - `E:\CWVIG_OSD\results\grouping_batch_medium\preset_summary.csv`
+  - `E:\CWVIG_OSD\results\grouping_batch_medium\by_dimension_preset.csv`
+  - `E:\CWVIG_OSD\results\grouping_batch_medium\by_context_preset.csv`
+  - `E:\CWVIG_OSD\results\grouping_batch_medium\by_seed_preset.csv`
+  - `E:\CWVIG_OSD\results\grouping_batch_medium\default_preset_selection.md`
+  - `E:\CWVIG_OSD\results\grouping_batch_medium\batch_plan.txt`
+  - `docs/grouping_batch_medium.md`
+- Medium preset summary:
+  - `balanced`: runs `24`, truth runs `24`, shared mean `6.70833333333`, over-shared mean `0.3225`, SharedVar-F1 mean `0.11323051948`, SharedVar-F1 std `0.135540809157`, Jaccard mean `0.549394011202`, validation total `0`
+  - `capped`: runs `24`, truth runs `24`, shared mean `12.0833333333`, over-shared mean `0.475`, SharedVar-F1 mean `0.225159069326`, SharedVar-F1 std `0.0849008748789`, Jaccard mean `0.539981741639`, validation total `0`
+  - `conservative`: runs `24`, truth runs `24`, shared mean `0`, over-shared mean `0`, SharedVar-F1 mean `0`, SharedVar-F1 std `0`, Jaccard mean `0.611591420064`, validation total `0`
+- 默认 preset 结论：
+  - Phase 5B smoke recommendation: `capped`
+  - Phase 5C medium recommendation: `capped`
+  - Smoke recommendation still holds under medium evidence.
+- 关键观察：
+  - Medium mode covers func `1`, dimensions `10,20,50`, seeds `1,3,5,11`, contexts `3,5`, and all three presets.
+  - `--dry-run` and `--max-runs` now make batch scope auditable before expensive runs.
+  - `summary.csv` now records `delta`, `exact_group_matches`, and `output_dir`.
+  - Stability views are now available by preset, by dimension+preset, by context+preset, and by seed+preset.
+  - `capped` has the highest mean SharedVar-F1 and lower SharedVar-F1 std than `balanced` on this medium batch.
+  - `balanced` has lower over-shared ratio, but lower truth-based shared-variable recovery.
+  - `conservative` has the highest Jaccard mean but predicts zero shared variables in every truth-available medium run, so it is too strict as a default.
+  - Truth `po/oo` files are only used after decomposition for evaluation; they are not fed into CWVIG grouping.
+  - No SharedVariablePolicy, CBOG_CBD, CMAESO, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - Medium mode still uses only Flyki `func=1`; broader functions remain untested in batch form.
+  - Dimension limit stops at `50`; full 905D remains intentionally out of scope for Phase 5C.
+  - `capped` currently wins but encodes a stronger shared-variable cap prior.
+  - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
+- 推荐下一目标：
+  - Add a custom batch over more Flyki functions and then decide whether `capped` becomes the exported default preset in the C++ pipeline entry.
