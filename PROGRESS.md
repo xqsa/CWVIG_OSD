@@ -343,3 +343,54 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files.
 - 推荐下一目标：
   - Add a method-level source selection flag around the CBOCC seam only after deciding how predicted grouping files will be passed at runtime; keep `CBCCO` defaulting to `legacy_by_function`.
+
+## 2026-06-29 - Phase 3A Black-box Probe Harness
+
+- 状态：done locally; pushed after verification
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/probe/BenchmarkEvaluator.h`
+  - `benchmark/flyki_overlap/probe/BenchmarkEvaluator.cpp`
+  - `benchmark/flyki_overlap/probe/FiniteDifferenceProbe.h`
+  - `benchmark/flyki_overlap/probe/FiniteDifferenceProbe.cpp`
+  - `benchmark/flyki_overlap/probe/SyntheticFunctions.h`
+  - `benchmark/flyki_overlap/probe/SyntheticFunctions.cpp`
+  - `benchmark/flyki_overlap/probe/ProbeHarnessTests.cpp`
+  - `benchmark/flyki_overlap/probe/probe_smoke_cli.cpp`
+  - `docs/probe_harness.md`
+  - `PROGRESS.md`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target probe_harness_tests --config Release`
+  - `cmake --build build/flyki --target probe_smoke_cli --config Release`
+  - `cmake --build build/flyki --target cbocco --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\probe_harness_tests.exe`
+  - `.\build\flyki\Release\probe_smoke_cli.exe --mode synthetic --dimension-limit 3 --seed 7 --delta 0.0001 --output .codex\phase3a_synthetic_probe.csv`
+  - `.\build\flyki\Release\probe_smoke_cli.exe --mode flyki --func 1 --dimension-limit 10 --seed 7 --delta 0.0001 --output .codex\phase3a_flyki_f1_probe.csv`
+- 输出：
+  - `probe_harness_tests`: `ProbeHarnessTests passed`
+  - synthetic mode: `Synthetic Interaction Evidence: 1e-08`, `Synthetic Separable Max Abs Evidence: 0`, `FE Count: 12`
+  - flyki mode: `Flyki Function: 1`, `Dimension Limit: 10`, `FE Count: 180`
+  - CSV header for both outputs: `i,j,evidence`
+  - Flyki F1 limited subset CSV line count: 46 lines including header
+  - `cbocco`: failed only with known missing external CMA-ES files: `cmaes_interface.h`, `boundary_transformation.h`, `CMA-ES implementation source files`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\probe_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\probe_harness_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\probe_smoke_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase3a_synthetic_probe.csv`
+  - `E:\CWVIG_OSD\.codex\phase3a_flyki_f1_probe.csv`
+  - `docs/probe_harness.md`
+- 关键观察：
+  - `BenchmarkEvaluator` wraps existing Flyki benchmark construction and counts successful `evaluate` calls.
+  - `probePair` uses the 4-evaluation finite-difference formula.
+  - Synthetic interaction smoke detects pair `(0,1)` while separable pairs are zero in this controlled case.
+  - Flyki probing is intentionally capped to a small variable subset.
+- 遗留风险：
+  - Full CWVIG estimator, probability matrix `P`, uncertainty matrix `U`, and soft decomposition are not implemented yet.
+  - Full 905D pairwise probing is intentionally skipped because it would require over 1.6M evaluations with this naive probe.
+  - Full `cbocco` remains blocked by missing external CMA-ES files.
+- 推荐下一目标：
+  - Add a budgeted interaction-estimation smoke layer that consumes this probe output and writes a small edge/evidence CSV, still without changing optimizer behavior.

@@ -47,6 +47,18 @@ add_library(flyki_core STATIC
 target_include_directories(flyki_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(flyki_core PUBLIC cxx_std_11)
 
+add_library(probe_core STATIC
+    probe/BenchmarkEvaluator.cpp
+    probe/BenchmarkEvaluator.h
+    probe/FiniteDifferenceProbe.cpp
+    probe/FiniteDifferenceProbe.h
+    probe/SyntheticFunctions.cpp
+    probe/SyntheticFunctions.h
+)
+target_include_directories(probe_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(probe_core PUBLIC flyki_core)
+target_compile_features(probe_core PUBLIC cxx_std_17)
+
 add_library(grouping_core STATIC
     grouping/CBOCCGroupingLoader.cpp
     grouping/CBOCCGroupingLoader.h
@@ -86,6 +98,12 @@ add_executable(grouping_source_cli
 target_link_libraries(grouping_source_cli PRIVATE grouping_core)
 target_compile_features(grouping_source_cli PRIVATE cxx_std_17)
 
+add_executable(probe_smoke_cli
+    probe/probe_smoke_cli.cpp
+)
+target_link_libraries(probe_smoke_cli PRIVATE probe_core)
+target_compile_features(probe_smoke_cli PRIVATE cxx_std_17)
+
 add_executable(grouping_metrics_tests
     grouping/GroupingMetricsTests.cpp
 )
@@ -109,6 +127,12 @@ add_executable(grouping_source_tests
 )
 target_link_libraries(grouping_source_tests PRIVATE grouping_core)
 target_compile_features(grouping_source_tests PRIVATE cxx_std_17)
+
+add_executable(probe_harness_tests
+    probe/ProbeHarnessTests.cpp
+)
+target_link_libraries(probe_harness_tests PRIVATE probe_core)
+target_compile_features(probe_harness_tests PRIVATE cxx_std_17)
 
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")
