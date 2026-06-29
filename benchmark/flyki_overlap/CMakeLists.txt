@@ -48,6 +48,8 @@ target_include_directories(flyki_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(flyki_core PUBLIC cxx_std_11)
 
 add_library(grouping_core STATIC
+    grouping/CBOCCGroupingLoader.cpp
+    grouping/CBOCCGroupingLoader.h
     grouping/GroupingData.cpp
     grouping/GroupingData.h
     grouping/GroupingIO.cpp
@@ -72,6 +74,12 @@ add_executable(grouping_provider_cli
 target_link_libraries(grouping_provider_cli PRIVATE grouping_core)
 target_compile_features(grouping_provider_cli PRIVATE cxx_std_17)
 
+add_executable(cbocco_grouping_loader_cli
+    grouping/cbocco_grouping_loader_cli.cpp
+)
+target_link_libraries(cbocco_grouping_loader_cli PRIVATE grouping_core)
+target_compile_features(cbocco_grouping_loader_cli PRIVATE cxx_std_17)
+
 add_executable(grouping_metrics_tests
     grouping/GroupingMetricsTests.cpp
 )
@@ -83,6 +91,12 @@ add_executable(grouping_provider_tests
 )
 target_link_libraries(grouping_provider_tests PRIVATE grouping_core)
 target_compile_features(grouping_provider_tests PRIVATE cxx_std_17)
+
+add_executable(cbocco_grouping_loader_tests
+    grouping/CBOCCGroupingLoaderTests.cpp
+)
+target_link_libraries(cbocco_grouping_loader_tests PRIVATE grouping_core)
+target_compile_features(cbocco_grouping_loader_tests PRIVATE cxx_std_17)
 
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")
@@ -187,8 +201,8 @@ if(NOT FLYKI_MISSING_CMAES_FILES)
         ${FLYKI_BENCHMARK_HEADERS}
     )
     target_include_directories(cbocco PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_compile_features(cbocco PRIVATE cxx_std_11)
-    target_link_libraries(cbocco PRIVATE flyki_cmaes)
+    target_compile_features(cbocco PRIVATE cxx_std_17)
+    target_link_libraries(cbocco PRIVATE flyki_cmaes grouping_core)
 else()
     string(REPLACE ";" ", " FLYKI_MISSING_CMAES_FILES_TEXT "${FLYKI_MISSING_CMAES_FILES}")
     add_custom_target(cbocco

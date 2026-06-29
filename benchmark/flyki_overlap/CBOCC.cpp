@@ -10,6 +10,7 @@
 #include <float.h>
 #include <cstdlib>
 #include "CBOG_CBD.h"
+#include "grouping/CBOCCGroupingLoader.h"
 
 using namespace std;
 
@@ -67,65 +68,10 @@ int main(int argc, char* argv[]) {
 	int DIM = 905;
 	Benchmarks* fp;
 	fp = generateFuncObj(func);
-	ifstream groupfile;
-	vector<vector<int>> groups;
-	stringstream ss;
-	string funcStr;
-	ss << func;
-	ss >> funcStr;
-	ss.clear();
-	string fileName = funcStr + "po.txt";
-	groupfile.open(fileName.c_str());
-	for (int i = 0; i < 20; i++) {
-		int elenum;
-		vector<int> v;
-		groupfile >> elenum;
-		for (int j = 0; j < elenum; j++) {
-			int ele;
-			groupfile >> ele;
-			v.push_back(ele);
-		}
-		groups.push_back(v);
-	}
-	groupfile.close();
-	fileName = funcStr + "oo.txt";
-	ifstream overfile(fileName.c_str());
-	vector<vector<int>> overiables;
-	vector<vector<int>> overiablesRedandunt;
-	map<int, vector<pair<int, int>>> sharedvar_group_pos;
-	set<int> allsharedv;
-	for (int i = 0; i < 20; i++) {
-		int eleNum;
-		vector<int> v;
-		vector<int> v2;
-		overfile >> eleNum;
-		for (int j = 0; j < eleNum; j++) {
-			int ele;
-			overfile >> ele;
-			if (allsharedv.find(ele) == allsharedv.end()) {
-				v.push_back(ele);
-				allsharedv.insert(ele);
-			}
-			v2.push_back(ele);
-		}
-		if (!v.empty()) {
-			overiables.push_back(v);
-		}
-		overiablesRedandunt.push_back(v2);
-	}
-	overfile.close();
-	for (int groupn = 0; groupn < (int)groups.size(); groupn++) {
-		for (int i = 0; i < (int)groups[groupn].size(); i++) {
-			for (int j = 0; j < (int)overiablesRedandunt[groupn].size(); j++) {
-				if (groups[groupn][i] == overiablesRedandunt[groupn][j]) {
-					sharedvar_group_pos[overiablesRedandunt[groupn][j]].push_back(make_pair(groupn, i));
-				}
-			}
-		}
-	}
+	const auto grouping = flyki::grouping::loadLegacyGroupingForFunction(func, ".");
 
 	if (method == "CBCCO") {
-		CBOG_CBD oneSolver(fp, DIM, seed, 100, groups, overiables, overiablesRedandunt, sharedvar_group_pos, maxfes);
+		CBOG_CBD oneSolver(fp, DIM, seed, 100, grouping.groups, grouping.overiables, grouping.overiablesRedandunt, grouping.sharedvar_group_pos, maxfes);
 		oneSolver.testStage();
 		oneSolver.optimizationStage();
 	}

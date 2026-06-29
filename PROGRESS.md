@@ -226,3 +226,57 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files.
 - 推荐下一目标：
   - Use this adapter behind a narrow CBOCC grouping-loading seam, keeping the `CBCCO` path behavior-equivalent before adding any CWVIG-OSD grouping source.
+
+## 2026-06-29 - Phase 2B CBOCC Grouping Loading Seam
+
+- 状态：done locally; pushed after verification
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/CBOCC.cpp`
+  - `benchmark/flyki_overlap/grouping/CBOCCGroupingLoader.h`
+  - `benchmark/flyki_overlap/grouping/CBOCCGroupingLoader.cpp`
+  - `benchmark/flyki_overlap/grouping/CBOCCGroupingLoaderTests.cpp`
+  - `benchmark/flyki_overlap/grouping/cbocco_grouping_loader_cli.cpp`
+  - `docs/cbocco_grouping_loader.md`
+  - `PROGRESS.md`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target cbocco_grouping_loader_tests --config Release`
+  - `cmake --build build/flyki --target cbocco_grouping_loader_cli --config Release`
+  - `cmake --build build/flyki --target grouping_metrics_tests --config Release`
+  - `cmake --build build/flyki --target grouping_provider_tests --config Release`
+  - `cmake --build build/flyki --target cbocco --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\cbocco_grouping_loader_tests.exe`
+  - `.\build\flyki\Release\cbocco_grouping_loader_cli.exe --func 1 --root benchmark\flyki_overlap --print-summary --dump-shared-map .codex\phase2b_shared_map.txt`
+  - `.\build\flyki\Release\cbocco_grouping_loader_cli.exe --func 1 --root benchmark\flyki_overlap --dump-shared-map .codex\phase2b_shared_map_again.txt`
+  - `.\build\flyki\Release\grouping_metrics_tests.exe`
+  - `.\build\flyki\Release\grouping_provider_tests.exe`
+- 输出：
+  - `cbocco_grouping_loader_tests`: `CBOCCGroupingLoaderTests passed`
+  - `cbocco_grouping_loader_cli`: `Number Of Groups: 20`
+  - `cbocco_grouping_loader_cli`: `Dimension: 905`
+  - `cbocco_grouping_loader_cli`: `Unique Variables: 905`
+  - `cbocco_grouping_loader_cli`: `Shared Variables: 95`
+  - `cbocco_grouping_loader_cli`: `Sharedvar Group Pos Entries: 95`
+  - `cbocco_grouping_loader_cli`: `Validation Errors: 0`
+  - shared map SHA256 matched across two runs: `A42A546503BF724CC4D2D33262B25E3F68F6989F30ACE649CD0C69318F021F55`
+  - `grouping_metrics_tests`: `GroupingMetricsTests passed`
+  - `grouping_provider_tests`: `GroupingProviderTests passed`
+  - `cbocco`: failed only with known missing external CMA-ES files: `cmaes_interface.h`, `boundary_transformation.h`, `CMA-ES implementation source files`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\cbocco_grouping_loader_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\cbocco_grouping_loader_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase2b_shared_map.txt`
+  - `docs/cbocco_grouping_loader.md`
+- 关键观察：
+  - `CBOCC.cpp` now uses `loadLegacyGroupingForFunction(func, ".")` instead of inline po/oo parsing.
+  - The data passed into `CBOG_CBD` remains `groups`, `overiables`, `overiablesRedandunt`, and `sharedvar_group_pos` from the legacy adapter.
+  - Loader and CLI build without CMA-ES.
+- 遗留风险：
+  - Full `cbocco` still cannot link until the original external CMA-ES dependency is provided.
+  - No CWVIG-OSD grouping source is implemented yet.
+- 推荐下一目标：
+  - After CMA-ES is supplied or a compile-only shim is chosen, verify full `cbocco` compilation with the loader seam; then add a method switch for an alternate grouping source without changing `CBCCO` behavior.
