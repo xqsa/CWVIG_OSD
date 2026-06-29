@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# C/C++
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.pdb
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+
+# Research outputs
+results/*
+!results/.gitkeep
+logs/
+*.npy
+*.npz
+*.pkl
+*.csv
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.codex/
+
+# Upstream repositories are kept as external baselines by default.
+benchmark/*/.git/
