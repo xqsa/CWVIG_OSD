@@ -174,3 +174,55 @@
   - Phase 1 does not yet connect grouping IO into CBOCC; it only provides reusable, independently testable components.
 - 推荐下一目标：
   - Add a narrow adapter layer that can feed parsed po/oo data into the existing CBOCC grouping flow without changing optimization behavior, then add CWVIG-OSD estimator stubs behind that adapter in a later phase.
+
+## 2026-06-29 - Phase 2A Legacy Grouping Provider Adapter
+
+- 状态：done locally; pushed after verification
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/grouping/LegacyGroupingAdapter.h`
+  - `benchmark/flyki_overlap/grouping/LegacyGroupingAdapter.cpp`
+  - `benchmark/flyki_overlap/grouping/GroupingProviderTests.cpp`
+  - `benchmark/flyki_overlap/grouping/grouping_provider_cli.cpp`
+  - `docs/grouping_provider.md`
+  - `PROGRESS.md`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target grouping_provider_tests --config Release`
+  - `cmake --build build/flyki --target grouping_provider_cli --config Release`
+  - `cmake --build build/flyki --target grouping_metrics_tests --config Release`
+  - `cmake --build build/flyki --target grouping_metrics_cli --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\grouping_provider_tests.exe`
+  - `.\build\flyki\Release\grouping_provider_cli.exe --po benchmark\flyki_overlap\1po.txt --oo benchmark\flyki_overlap\1oo.txt --print-summary --dump-shared-map .codex\phase2a_shared_map.txt`
+  - `.\build\flyki\Release\grouping_metrics_tests.exe`
+  - `.\build\flyki\Release\grouping_metrics_cli.exe --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt`
+- 输出：
+  - `grouping_provider_tests`: `GroupingProviderTests passed`
+  - `grouping_provider_cli`: `Number Of Groups: 20`
+  - `grouping_provider_cli`: `Dimension: 905`
+  - `grouping_provider_cli`: `Unique Variables: 905`
+  - `grouping_provider_cli`: `Shared Variables: 95`
+  - `grouping_provider_cli`: `Sharedvar Group Pos Entries: 95`
+  - `grouping_provider_cli`: `Validation Errors: 0`
+  - shared map SHA256: `A42A546503BF724CC4D2D33262B25E3F68F6989F30ACE649CD0C69318F021F55`
+  - second shared map dump SHA256 matched the first hash.
+  - `grouping_metrics_tests`: `GroupingMetricsTests passed`
+  - `grouping_metrics_cli`: `SharedVar Precision: 1.000000`, `Recall: 1.000000`, `F1: 1.000000`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_provider_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\grouping_provider_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase2a_shared_map.txt`
+  - `docs/grouping_provider.md`
+- 关键观察：
+  - Adapter reproduces legacy CBOCC naming and structure, including the original `overiablesRedandunt` spelling.
+  - Duplicate overlap entries remain duplicated in `overiablesRedandunt` and produce duplicate `(group_id, position)` pairs in `sharedvar_group_pos`.
+  - `overiables` preserves first-seen shared-variable order by scanning `oo` groups in file order and skipping empty per-group contributions.
+  - The provider target does not link CMA-ES and remains independent of `cbocco`.
+- 遗留风险：
+  - `CBOCC.cpp` is not wired to the adapter yet by design.
+  - Full `cbocco` remains blocked by missing external CMA-ES files.
+- 推荐下一目标：
+  - Use this adapter behind a narrow CBOCC grouping-loading seam, keeping the `CBCCO` path behavior-equivalent before adding any CWVIG-OSD grouping source.

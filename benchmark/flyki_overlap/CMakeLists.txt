@@ -54,6 +54,8 @@ add_library(grouping_core STATIC
     grouping/GroupingIO.h
     grouping/GroupingMetrics.cpp
     grouping/GroupingMetrics.h
+    grouping/LegacyGroupingAdapter.cpp
+    grouping/LegacyGroupingAdapter.h
 )
 target_include_directories(grouping_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(grouping_core PUBLIC cxx_std_17)
@@ -64,11 +66,23 @@ add_executable(grouping_metrics_cli
 target_link_libraries(grouping_metrics_cli PRIVATE grouping_core)
 target_compile_features(grouping_metrics_cli PRIVATE cxx_std_17)
 
+add_executable(grouping_provider_cli
+    grouping/grouping_provider_cli.cpp
+)
+target_link_libraries(grouping_provider_cli PRIVATE grouping_core)
+target_compile_features(grouping_provider_cli PRIVATE cxx_std_17)
+
 add_executable(grouping_metrics_tests
     grouping/GroupingMetricsTests.cpp
 )
 target_link_libraries(grouping_metrics_tests PRIVATE grouping_core)
 target_compile_features(grouping_metrics_tests PRIVATE cxx_std_17)
+
+add_executable(grouping_provider_tests
+    grouping/GroupingProviderTests.cpp
+)
+target_link_libraries(grouping_provider_tests PRIVATE grouping_core)
+target_compile_features(grouping_provider_tests PRIVATE cxx_std_17)
 
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")
