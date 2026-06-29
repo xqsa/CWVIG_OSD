@@ -593,3 +593,80 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
 - 推荐下一目标：
   - Add calibrated threshold selection for `soft_overlap_cli` inputs, then evaluate predicted po/oo against Phase 3C edge/grouping metrics before any optimizer integration.
+
+## 2026-06-29 - Phase 4B Soft Overlap Calibration And Grouping Evaluation
+
+- 状态：done locally; calibration tests and Flyki small-subset calibration smoke verified
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapCalibration.h`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapCalibration.cpp`
+  - `benchmark/flyki_overlap/grouping/SoftOverlapCalibrationTests.cpp`
+  - `benchmark/flyki_overlap/grouping/soft_overlap_calibration_cli.cpp`
+  - `docs/soft_overlap_calibration.md`
+  - `PROGRESS.md`
+- TDD RED 命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target soft_overlap_calibration_tests --config Release`
+- TDD RED 输出：
+  - configure succeeded
+  - build failed as expected with `fatal error C1083: cannot open include file: grouping/SoftOverlapCalibration.h`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target soft_overlap_calibration_tests --config Release`
+  - `cmake --build build/flyki --target soft_overlap_calibration_cli --config Release`
+  - `cmake --build build/flyki --target grouping_source_cli --config Release`
+  - `cmake --build build/flyki --target cwvig_estimator_cli --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\soft_overlap_calibration_tests.exe`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode synthetic --synthetic-function overlap --dimension-limit 3 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase4b_synthetic_overlap_edges.csv`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4b_synthetic_overlap_edges.csv --score-column mean_abs_normalized --use-log1p-score false --dimension 3 --mode oracle --true-po .codex\phase4b_synthetic_true_po.txt --true-oo .codex\phase4b_synthetic_true_oo.txt --score-threshold-grid 1.0 --expand-threshold-grid 1.5 --z-threshold-grid 0.8 --shared-ratio-threshold-grid 0.7 --output-report .codex\phase4b_synthetic_oracle_report.csv --output-best-po .codex\phase4b_synthetic_best_groups.txt --output-best-oo .codex\phase4b_synthetic_best_overlap.txt --output-best-z .codex\phase4b_synthetic_best_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4b_no_edges.csv --score-column mean_abs_normalized --use-log1p-score false --dimension 3 --mode unsupervised --unsupervised-method quantile_score --score-quantile 0.75 --output-report .codex\phase4b_no_edge_unsup_report.csv --output-best-po .codex\phase4b_no_edge_groups.txt --output-best-oo .codex\phase4b_no_edge_overlap.txt --output-best-z .codex\phase4b_no_edge_z.csv --print-summary`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode flyki --func 1 --dimension-limit 10 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase4b_flyki_f1_edges.csv`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4b_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score true --dimension 10 --mode unsupervised --unsupervised-method quantile_score --score-quantile 0.90 --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-report .codex\phase4b_flyki_quantile_report.csv --output-best-po .codex\phase4b_flyki_quantile_groups.txt --output-best-oo .codex\phase4b_flyki_quantile_overlap.txt --output-best-z .codex\phase4b_flyki_quantile_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4b_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score true --dimension 10 --mode unsupervised --unsupervised-method target_avg_degree --target-avg-degree 1.0 --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-report .codex\phase4b_flyki_target_degree_report.csv --output-best-po .codex\phase4b_flyki_target_degree_groups.txt --output-best-oo .codex\phase4b_flyki_target_degree_overlap.txt --output-best-z .codex\phase4b_flyki_target_degree_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4b_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score true --dimension 10 --mode oracle --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --score-threshold-grid auto --expand-threshold-grid auto --z-threshold-grid auto --shared-ratio-threshold-grid auto --output-report .codex\phase4b_flyki_oracle_report.csv --output-best-po .codex\phase4b_flyki_oracle_groups.txt --output-best-oo .codex\phase4b_flyki_oracle_overlap.txt --output-best-z .codex\phase4b_flyki_oracle_z.csv --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4b_flyki_f1_edges.csv --score-column mean_abs_normalized --use-log1p-score true --dimension 10 --mode oracle --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --score-threshold-grid 330634000000 --expand-threshold-grid 20 --z-threshold-grid 0.99 --shared-ratio-threshold-grid 0.7 --output-report .codex\phase4b_flyki_phase4a_raw_report.csv --output-best-po .codex\phase4b_flyki_phase4a_raw_groups.txt --output-best-oo .codex\phase4b_flyki_phase4a_raw_overlap.txt --output-best-z .codex\phase4b_flyki_phase4a_raw_z.csv --print-summary`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po .codex\phase4b_flyki_oracle_groups.txt --oo .codex\phase4b_flyki_oracle_overlap.txt --print-summary`
+  - `.\build\flyki\Release\soft_overlap_calibration_cli.exe --edges .codex\phase4b_synthetic_overlap_edges.csv --score-column mean_abs_normalized --use-log1p-score false --dimension 3 --mode oracle --score-threshold-grid 1.0 --expand-threshold-grid 1.5 --z-threshold-grid 0.8 --shared-ratio-threshold-grid 0.7 --output-report .codex\phase4b_should_not_exist.csv --output-best-po .codex\phase4b_should_not_exist_po.txt --output-best-oo .codex\phase4b_should_not_exist_oo.txt --output-best-z .codex\phase4b_should_not_exist_z.csv`
+- 输出：
+  - `soft_overlap_calibration_tests`: `SoftOverlapCalibrationTests passed`
+  - synthetic oracle: `Rows: 1`, `Groups: 2`, `Shared Variables: 1`, `Over Shared Ratio: 0.333333`, `SharedVar F1: 1`, `Mean Best Group Jaccard: 1`
+  - no-edge unsupervised: `Groups: 3`, `Shared Variables: 0`, `Over Shared Ratio: 0`, `Validation Errors: 0`
+  - Flyki quantile unsupervised: `Groups: 5`, `Shared Variables: 10`, `Over Shared Ratio: 1`, `SharedVar F1: 0.333333`
+  - Flyki target-degree unsupervised: `Groups: 9`, `Shared Variables: 10`, `Over Shared Ratio: 1`, `SharedVar F1: 0.333333`
+  - Flyki oracle auto-grid: `Rows: 81`, `Groups: 2`, `Shared Variables: 4`, `Over Shared Ratio: 0.4`, `SharedVar F1: 0.666667`, `Validation Errors: 0`
+  - Phase 4A raw diagnostic row: `Groups: 10`, `Shared Variables: 10`, `Over Shared Ratio: 1`, `SharedVar F1: 0.333333`
+  - oracle without truth returned nonzero with `Oracle mode requires --true-po and --true-oo.`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_calibration_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\soft_overlap_calibration_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase4b_synthetic_oracle_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4b_synthetic_best_groups.txt`
+  - `E:\CWVIG_OSD\.codex\phase4b_synthetic_best_overlap.txt`
+  - `E:\CWVIG_OSD\.codex\phase4b_synthetic_best_z.csv`
+  - `E:\CWVIG_OSD\.codex\phase4b_no_edge_unsup_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4b_flyki_f1_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase4b_flyki_quantile_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4b_flyki_target_degree_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4b_flyki_oracle_report.csv`
+  - `E:\CWVIG_OSD\.codex\phase4b_flyki_oracle_groups.txt`
+  - `E:\CWVIG_OSD\.codex\phase4b_flyki_oracle_overlap.txt`
+  - `E:\CWVIG_OSD\.codex\phase4b_flyki_oracle_z.csv`
+  - `E:\CWVIG_OSD\.codex\phase4b_flyki_phase4a_raw_report.csv`
+  - `docs/soft_overlap_calibration.md`
+- 关键观察：
+  - Unsupervised threshold selection uses only weighted graph edge scores; optional true po/oo are evaluated after decomposition only.
+  - Oracle mode requires true po/oo and is explicitly diagnostic.
+  - Calibration CSV records threshold configuration plus grouping/shared-variable metrics and over-shared ratio.
+  - The Phase 4A over-sharing issue is now explicitly measured as `over_shared_ratio=1`.
+  - Current unsupervised quantile/target-degree settings still over-share on Flyki F1 dimension 10, while oracle diagnostics find a less over-shared region.
+  - No SharedVariablePolicy, CBOG_CBD, CMAESO, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - Unsupervised calibration is still too loose on the current Flyki F1 small subset.
+  - Oracle results are diagnostic only and must not be used as the algorithm path.
+  - Full 905D calibration remains intentionally skipped.
+  - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
+- 推荐下一目标：
+  - Improve unsupervised thresholding to penalize over-shared solutions without using truth labels, for example by adding a target shared-ratio or sparsity regularizer before optimizer integration.
