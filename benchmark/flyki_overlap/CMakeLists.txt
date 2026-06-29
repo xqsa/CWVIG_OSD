@@ -50,10 +50,16 @@ target_compile_features(flyki_core PUBLIC cxx_std_11)
 add_library(probe_core STATIC
     probe/BenchmarkEvaluator.cpp
     probe/BenchmarkEvaluator.h
+    probe/CWVIGEdgeData.cpp
+    probe/CWVIGEdgeData.h
+    probe/CWVIGEdgeMetrics.cpp
+    probe/CWVIGEdgeMetrics.h
     probe/CWVIGEstimator.cpp
     probe/CWVIGEstimator.h
     probe/FiniteDifferenceProbe.cpp
     probe/FiniteDifferenceProbe.h
+    probe/InteractionGroundTruth.cpp
+    probe/InteractionGroundTruth.h
     probe/SyntheticFunctions.cpp
     probe/SyntheticFunctions.h
 )
@@ -112,6 +118,12 @@ add_executable(cwvig_estimator_cli
 target_link_libraries(cwvig_estimator_cli PRIVATE probe_core)
 target_compile_features(cwvig_estimator_cli PRIVATE cxx_std_17)
 
+add_executable(cwvig_edge_eval_cli
+    probe/cwvig_edge_eval_cli.cpp
+)
+target_link_libraries(cwvig_edge_eval_cli PRIVATE probe_core grouping_core)
+target_compile_features(cwvig_edge_eval_cli PRIVATE cxx_std_17)
+
 add_executable(grouping_metrics_tests
     grouping/GroupingMetricsTests.cpp
 )
@@ -147,6 +159,12 @@ add_executable(cwvig_estimator_tests
 )
 target_link_libraries(cwvig_estimator_tests PRIVATE probe_core)
 target_compile_features(cwvig_estimator_tests PRIVATE cxx_std_17)
+
+add_executable(cwvig_edge_eval_tests
+    probe/CWVIGEdgeEvalTests.cpp
+)
+target_link_libraries(cwvig_edge_eval_tests PRIVATE probe_core grouping_core)
+target_compile_features(cwvig_edge_eval_tests PRIVATE cxx_std_17)
 
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")

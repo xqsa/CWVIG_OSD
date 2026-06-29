@@ -452,3 +452,71 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files.
 - 推荐下一目标：
   - Add a converter from CWVIG edge CSV to a simple predicted grouping file for toy synthetic cases, still outside optimizer logic.
+
+## 2026-06-29 - Phase 3C CWVIG Edge Evaluation And Calibration
+
+- 状态：done locally; edge evaluation pipeline verified on synthetic cases and Flyki F1 limited subset
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/probe/CWVIGEdgeData.h`
+  - `benchmark/flyki_overlap/probe/CWVIGEdgeData.cpp`
+  - `benchmark/flyki_overlap/probe/InteractionGroundTruth.h`
+  - `benchmark/flyki_overlap/probe/InteractionGroundTruth.cpp`
+  - `benchmark/flyki_overlap/probe/CWVIGEdgeMetrics.h`
+  - `benchmark/flyki_overlap/probe/CWVIGEdgeMetrics.cpp`
+  - `benchmark/flyki_overlap/probe/CWVIGEdgeEvalTests.cpp`
+  - `benchmark/flyki_overlap/probe/cwvig_edge_eval_cli.cpp`
+  - `docs/cwvig_edge_evaluation.md`
+  - `PROGRESS.md`
+- TDD RED 命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target cwvig_edge_eval_tests --config Release`
+- TDD RED 输出：
+  - configure succeeded
+  - build failed as expected with `fatal error C1083: cannot open include file: probe/CWVIGEdgeData.h`
+- 编译命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target flyki_core --config Release`
+  - `cmake --build build/flyki --target cwvig_edge_eval_tests --config Release`
+  - `cmake --build build/flyki --target cwvig_edge_eval_cli --config Release`
+  - `cmake --build build/flyki --target cwvig_estimator_tests --config Release`
+  - `cmake --build build/flyki --target cwvig_estimator_cli --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\cwvig_edge_eval_tests.exe`
+  - `.\build\flyki\Release\cwvig_estimator_tests.exe`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode synthetic --synthetic-function interaction --dimension-limit 4 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase3c_interaction_edges.csv`
+  - `.\build\flyki\Release\cwvig_edge_eval_cli.exe --edges .codex\phase3c_interaction_edges.csv --po .codex\phase3c_interaction_po.txt --oo .codex\phase3c_interaction_oo.txt --dimension-limit 4 --prob-threshold 0.5 --score-threshold 0.5 --top-k 1 --print-summary --output .codex\phase3c_interaction_metrics.csv`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode synthetic --synthetic-function overlap --dimension-limit 3 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase3c_overlap_edges.csv`
+  - `.\build\flyki\Release\cwvig_edge_eval_cli.exe --edges .codex\phase3c_overlap_edges.csv --po .codex\phase3c_overlap_po.txt --oo .codex\phase3c_overlap_oo.txt --dimension-limit 3 --prob-threshold 0.5 --score-threshold 0.5 --top-k 2 --print-summary --output .codex\phase3c_overlap_metrics.csv`
+  - `.\build\flyki\Release\cwvig_estimator_cli.exe --mode flyki --func 1 --dimension-limit 10 --contexts 3 --seed 11 --delta 0.0001 --threshold-mode fixed --fixed-threshold 0.5 --output .codex\phase3c_flyki_f1_edges.csv`
+  - `.\build\flyki\Release\cwvig_edge_eval_cli.exe --edges .codex\phase3c_flyki_f1_edges.csv --po benchmark\flyki_overlap\1po.txt --oo benchmark\flyki_overlap\1oo.txt --dimension-limit 10 --prob-threshold 0.5 --score-threshold 0.5 --top-k 10 --print-summary --output .codex\phase3c_flyki_f1_metrics.csv`
+- 输出：
+  - `cwvig_edge_eval_tests`: `CWVIGEdgeEvalTests passed`
+  - `cwvig_estimator_tests`: `CWVIGEstimatorTests passed`
+  - one-interaction synthetic: `evaluated_edges=6`, `positive_edges=1`, `prob_f1=1`, `score_f1=1`, `top_k_precision=1`, `ranking_accuracy=1`
+  - overlap synthetic: `evaluated_edges=3`, `positive_edges=2`, `negative_edges=1`, `prob_f1=1`, `score_f1=1`, `best_score_threshold=1.9998`, `top_k_precision=1`, `ranking_accuracy=1`
+  - Flyki F1 limited subset: `evaluated_edges=45`, `positive_edges=2`, `negative_edges=43`, `prob_f1=0.114285714286`, `score_f1=0.114285714286`, `best_probability_f1=0.5`, `best_score_f1=0.666666666667`, `ranking_accuracy=0.738372093023`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\flyki_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\probe_core.lib`
+  - `E:\CWVIG_OSD\build\flyki\Release\cwvig_edge_eval_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\cwvig_edge_eval_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase3c_interaction_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase3c_interaction_metrics.csv`
+  - `E:\CWVIG_OSD\.codex\phase3c_overlap_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase3c_overlap_metrics.csv`
+  - `E:\CWVIG_OSD\.codex\phase3c_flyki_f1_edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase3c_flyki_f1_metrics.csv`
+  - `docs/cwvig_edge_evaluation.md`
+- 关键观察：
+  - Edge truth uses `po` group co-membership within `[0, dimension_limit)` and keeps 0-based ids.
+  - `oo` is parsed by the CLI for input consistency, but edge labels are intentionally derived from `po`.
+  - The metrics layer exposes fixed-threshold quality and best-F1 calibrated thresholds separately.
+  - Flyki F1 limited subset confirms fixed `0.5` thresholds are poorly calibrated, while score threshold scanning improves F1 in this tiny smoke case.
+  - No SoftOverlapDecomposition, `Z` learning, SharedVariablePolicy, CBOG_CBD, CMAESO, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
+  - Phase 3C evaluates edge quality only; it does not produce grouping files or optimizer-ready soft decomposition.
+  - Flyki smoke uses only `dimension_limit=10`; full 905D probing remains intentionally skipped.
+- 推荐下一目标：
+  - Add a calibrated CWVIG graph export step that writes `W` and `U` matrices or edge lists from the evaluated/calibrated edge CSV, still without implementing SoftOverlapDecomposition.
