@@ -841,3 +841,69 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
 - 推荐下一目标：
   - Add a label-free preset scoring rule or lightweight affiliation refinement to improve shared-variable precision before connecting predicted grouping files to a CBOCC method switch.
+
+## 2026-06-29 - Phase 5B Batch Grouping Experiments And Default Preset Selection
+
+- 状态：done locally; smoke batch, analyzer, loader validation, docs verified
+- 修改文件：
+  - `experiments/run_grouping_batch.py`
+  - `experiments/analyze_grouping_batch.py`
+  - `docs/grouping_batch_experiments.md`
+  - `PROGRESS.md`
+- TDD RED 命令：
+  - `python experiments\run_grouping_batch.py --mode smoke --output-root results\grouping_batch`
+  - `C:\Windows\py.exe -3 experiments\run_grouping_batch.py --mode smoke --output-root results\grouping_batch`
+- TDD RED 输出：
+  - `python` failed because it is not in PATH.
+  - `C:\Windows\py.exe -3 ...` failed as expected with `can't open file 'E:\CWVIG_OSD\experiments\run_grouping_batch.py': [Errno 2] No such file or directory`.
+- 编译命令：
+  - Phase 5B did not require C++ source changes.
+  - Existing prerequisite executable used: `E:\CWVIG_OSD\build\flyki\Release\cwvig_grouping_pipeline_cli.exe`
+- 运行命令：
+  - `C:\Windows\py.exe -3 experiments\run_grouping_batch.py --mode smoke --output-root results\grouping_batch --clean`
+  - `C:\Windows\py.exe -3 experiments\analyze_grouping_batch.py --output-root results\grouping_batch`
+  - `Get-ChildItem -Path results\grouping_batch\runs -Directory | ForEach-Object { $po = Join-Path $_.FullName 'predicted_groups.txt'; $oo = Join-Path $_.FullName 'predicted_overlap.txt'; $out = .\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po $po --oo $oo --print-summary; $validation = ($out | Select-String 'Validation Errors'); "$($_.Name): $validation" }`
+- 输出：
+  - smoke batch ran 6 pipeline jobs:
+    - `f1_d10_s1_c3_conservative`
+    - `f1_d10_s1_c3_balanced`
+    - `f1_d10_s1_c3_capped`
+    - `f1_d10_s3_c3_conservative`
+    - `f1_d10_s3_c3_balanced`
+    - `f1_d10_s3_c3_capped`
+  - `summary=E:\CWVIG_OSD\results\grouping_batch\summary.csv`
+  - `preset_summary=E:\CWVIG_OSD\results\grouping_batch\preset_summary.csv`
+  - `default_preset_selection=E:\CWVIG_OSD\results\grouping_batch\default_preset_selection.md`
+  - analyzer standalone regenerated all three report files successfully.
+  - explicit loader validation returned `Validation Errors: 0` for all six run directories.
+  - truth metrics were available for all six smoke runs because `benchmark\flyki_overlap\1po.txt` and `benchmark\flyki_overlap\1oo.txt` exist.
+- Smoke preset summary:
+  - `balanced`: runs `2`, shared mean `5.5`, over-shared mean `0.55`, SharedVar-F1 mean `0.267857142857`, Jaccard mean `0.691666666667`, validation mean `0`, FE mean `540`
+  - `capped`: runs `2`, shared mean `5`, over-shared mean `0.5`, SharedVar-F1 mean `0.285714285714`, Jaccard mean `0.458002645503`, validation mean `0`, FE mean `540`
+  - `conservative`: runs `2`, shared mean `0`, over-shared mean `0`, SharedVar-F1 mean `0`, Jaccard mean `0.888888888889`, validation mean `0`, FE mean `540`
+  - current smoke recommendation: `capped`, because it has the highest mean SharedVar-F1 under the deterministic selection rules.
+- 结果文件：
+  - `E:\CWVIG_OSD\results\grouping_batch\summary.csv`
+  - `E:\CWVIG_OSD\results\grouping_batch\preset_summary.csv`
+  - `E:\CWVIG_OSD\results\grouping_batch\default_preset_selection.md`
+  - `E:\CWVIG_OSD\results\grouping_batch\runs\f1_d10_s1_c3_balanced\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\results\grouping_batch\runs\f1_d10_s1_c3_capped\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\results\grouping_batch\runs\f1_d10_s1_c3_conservative\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\results\grouping_batch\runs\f1_d10_s3_c3_balanced\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\results\grouping_batch\runs\f1_d10_s3_c3_capped\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\results\grouping_batch\runs\f1_d10_s3_c3_conservative\pipeline_summary.txt`
+  - `docs/grouping_batch_experiments.md`
+- 关键观察：
+  - Batch runner uses only Python standard library and calls `cwvig_grouping_pipeline_cli`; it does not duplicate grouping logic.
+  - Runner detects true `po/oo` by function and passes them only for after-the-fact evaluation.
+  - Analyzer can regenerate summary CSV, preset aggregation, and default selection report from existing run folders.
+  - Smoke mode is intentionally small and deterministic: func `1`, dimension `10`, seeds `1,3`, contexts `3`, all three presets.
+  - No SharedVariablePolicy, CBOG_CBD, CMAESO, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - Smoke recommendation is based on only two seeds and one 10D function subset.
+  - `capped` wins this smoke batch by SharedVar-F1 but uses a stronger shared-ratio prior.
+  - `balanced` remains useful as a less cap-driven candidate but needs medium/custom batch evidence.
+  - Full 905D runs remain intentionally skipped.
+  - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
+- 推荐下一目标：
+  - Run medium batch and use its stability evidence to decide whether `balanced` should remain the default candidate or whether `capped` should become the documented default before any CBOCC method switch.

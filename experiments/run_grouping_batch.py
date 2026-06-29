@@ -1,0 +1,142 @@
+import argparse
+import shutil
+import subprocess
+from pathlib import Path
+
+from analyze_grouping_batch import analyze
+
+
+PRESETS = ["conservative", "balanced", "capped"]
+
+
+def parse_int_list(text):
+    return [int(item) for item in text.split(",") if item.strip()]
+
+
+def mode_defaults(mode):
+    if mode == "smoke":
+        return {
+            "functions": [1],
+            "dimension_limits": [10],
+            "seeds": [1, 3],
+            "contexts": [3],
+            "presets": PRESETS,
+        }
+    if mode == "medium":
+        return {
+            "functions": [1],
+            "dimension_limits": [10, 20, 50],
+            "seeds": [1, 3, 5, 11],
+            "contexts": [3, 5],
+            "presets": PRESETS,
+        }
+    return {
+        "functions": [1],
+        "dimension_limits": [10],
+        "seeds": [1],
+        "contexts": [3],
+        "presets": PRESETS,
+    }
+
+
+def truth_paths(benchmark_root, func):
+    po = benchmark_root / f"{func}po.txt"
+    oo = benchmark_root / f"{func}oo.txt"
+    return (po, oo) if po.exists() and oo.exists() else (None, None)
+
+
+def run_name(func, dimension, seed, contexts, preset):
+    return f"f{func}_d{dimension}_s{seed}_c{contexts}_{preset}"
+
+
+def run_one(args, func, dimension, seed, contexts, preset, output_dir):
+    po, oo = truth_paths(args.benchmark_root, func)
+    command = [
+        str(args.pipeline_exe),
+        "--mode",
+        "flyki",
+        "--func",
+        str(func),
+        "--dimension-limit",
+        str(dimension),
+        "--contexts",
+        str(contexts),
+        "--seed",
+        str(seed),
+        "--delta",
+        str(args.delta),
+        "--preset",
+        preset,
+        "--output-dir",
+        str(output_dir),
+    ]
+    if po is not None and oo is not None:
+        command.extend(["--true-po", str(po), "--true-oo", str(oo)])
+    command.append("--print-summary")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "command.txt").write_text(" ".join(command) + "\n", encoding="utf-8")
+    completed = subprocess.run(command, cwd=args.repo_root, text=True, capture_output=True)
+    (output_dir / "stdout.txt").write_text(completed.stdout, encoding="utf-8")
+    (output_dir / "stderr.txt").write_text(completed.stderr, encoding="utf-8")
+    if completed.returncode != 0:
+        raise RuntimeError(f"pipeline failed for {output_dir}: {completed.stderr.strip()}")
+
+
+def resolved_args():
+    parser = argparse.ArgumentParser(description="Run CWVIG grouping pipeline batch experiments.")
+    parser.add_argument("--mode", choices=["smoke", "medium", "custom"], default="smoke")
+    parser.add_argument("--functions")
+    parser.add_argument("--dimension-limits")
+    parser.add_argument("--seeds")
+    parser.add_argument("--contexts")
+    parser.add_argument("--presets")
+    parser.add_argument("--delta", type=float, default=0.0001)
+    parser.add_argument("--output-root", default="results/grouping_batch")
+    parser.add_argument("--pipeline-exe", default="build/flyki/Release/cwvig_grouping_pipeline_cli.exe")
+    parser.add_argument("--benchmark-root", default="benchmark/flyki_overlap")
+    parser.add_argument("--clean", action="store_true")
+    args = parser.parse_args()
+
+    args.repo_root = Path(__file__).resolve().parents[1]
+    args.output_root = (args.repo_root / args.output_root).resolve()
+    args.pipeline_exe = (args.repo_root / args.pipeline_exe).resolve()
+    args.benchmark_root = (args.repo_root / args.benchmark_root).resolve()
+
+    defaults = mode_defaults(args.mode)
+    args.functions = parse_int_list(args.functions) if args.functions else defaults["functions"]
+    args.dimension_limits = parse_int_list(args.dimension_limits) if args.dimension_limits else defaults["dimension_limits"]
+    args.seeds = parse_int_list(args.seeds) if args.seeds else defaults["seeds"]
+    args.contexts = parse_int_list(args.contexts) if args.contexts else defaults["contexts"]
+    args.presets = [item for item in args.presets.split(",") if item.strip()] if args.presets else defaults["presets"]
+    if not args.pipeline_exe.exists():
+        raise FileNotFoundError(f"pipeline executable not found: {args.pipeline_exe}")
+    return args
+
+
+def main():
+    args = resolved_args()
+    if args.clean and args.output_root.exists():
+        shutil.rmtree(args.output_root)
+    runs_root = args.output_root / "runs"
+    runs_root.mkdir(parents=True, exist_ok=True)
+
+    total = 0
+    for func in args.functions:
+        for dimension in args.dimension_limits:
+            for seed in args.seeds:
+                for contexts in args.contexts:
+                    for preset in args.presets:
+                        output_dir = runs_root / run_name(func, dimension, seed, contexts, preset)
+                        print(f"running {output_dir.relative_to(args.repo_root)}")
+                        run_one(args, func, dimension, seed, contexts, preset, output_dir)
+                        total += 1
+
+    summary_path, preset_path, report_path = analyze(args.output_root)
+    print(f"runs={total}")
+    print(f"summary={summary_path}")
+    print(f"preset_summary={preset_path}")
+    print(f"default_preset_selection={report_path}")
+
+
+if __name__ == "__main__":
+    main()
