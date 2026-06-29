@@ -9,6 +9,7 @@ namespace probe {
 double separableSphere(const std::vector<double> &x);
 double twoVariableInteraction(const std::vector<double> &x);
 double tinyOverlappingFunction(const std::vector<double> &x);
+double tinyCliqueFunction(const std::vector<double> &x);
 
 }  // namespace probe
 }  // namespace flyki

@@ -83,6 +83,8 @@ target_include_directories(grouping_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(grouping_core PUBLIC cxx_std_17)
 
 add_library(soft_overlap_core STATIC
+    grouping/CWVIGGroupingPipeline.cpp
+    grouping/CWVIGGroupingPipeline.h
     grouping/SoftOverlapCalibration.cpp
     grouping/SoftOverlapCalibration.h
     grouping/SoftOverlapDecomposition.cpp
@@ -148,6 +150,12 @@ add_executable(soft_overlap_calibration_cli
 target_link_libraries(soft_overlap_calibration_cli PRIVATE soft_overlap_core)
 target_compile_features(soft_overlap_calibration_cli PRIVATE cxx_std_17)
 
+add_executable(cwvig_grouping_pipeline_cli
+    grouping/cwvig_grouping_pipeline_cli.cpp
+)
+target_link_libraries(cwvig_grouping_pipeline_cli PRIVATE soft_overlap_core)
+target_compile_features(cwvig_grouping_pipeline_cli PRIVATE cxx_std_17)
+
 add_executable(grouping_metrics_tests
     grouping/GroupingMetricsTests.cpp
 )
@@ -207,6 +215,12 @@ add_executable(soft_overlap_pruning_tests
 )
 target_link_libraries(soft_overlap_pruning_tests PRIVATE soft_overlap_core)
 target_compile_features(soft_overlap_pruning_tests PRIVATE cxx_std_17)
+
+add_executable(cwvig_grouping_pipeline_tests
+    grouping/CWVIGGroupingPipelineTests.cpp
+)
+target_link_libraries(cwvig_grouping_pipeline_tests PRIVATE soft_overlap_core)
+target_compile_features(cwvig_grouping_pipeline_tests PRIVATE cxx_std_17)
 
 set(FLYKI_CMAES_DIR "" CACHE PATH "Path to the original CMA-ES C/C++ source distribution.")
 set(FLYKI_CMAES_SOURCES "" CACHE STRING "Semicolon-separated CMA-ES implementation sources, if they are not discoverable from FLYKI_CMAES_DIR.")

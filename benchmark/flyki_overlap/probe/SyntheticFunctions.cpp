@@ -32,5 +32,14 @@ double tinyOverlappingFunction(const std::vector<double> &x)
     return first * first + second * second;
 }
 
+double tinyCliqueFunction(const std::vector<double> &x)
+{
+    if (x.size() < 3) {
+        throw std::invalid_argument("tinyCliqueFunction requires at least three variables.");
+    }
+    const double sum = x[0] + x[1] + x[2];
+    return sum * sum;
+}
+
 }  // namespace probe
 }  // namespace flyki

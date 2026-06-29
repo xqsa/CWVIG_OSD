@@ -768,3 +768,76 @@
   - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
 - 推荐下一目标：
   - Add a real affiliation-model refinement loop for `Z` or a label-free sparsity objective, then only after that start wiring shared-variable confidence into a CC adapter.
+
+## 2026-06-29 - Phase 5A Integrated CWVIG Grouping Pipeline CLI
+
+- 状态：done locally; pipeline tests, synthetic CLI smoke, and Flyki F1 10D preset smoke verified
+- 修改文件：
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/probe/SyntheticFunctions.h`
+  - `benchmark/flyki_overlap/probe/SyntheticFunctions.cpp`
+  - `benchmark/flyki_overlap/grouping/CWVIGGroupingPipeline.h`
+  - `benchmark/flyki_overlap/grouping/CWVIGGroupingPipeline.cpp`
+  - `benchmark/flyki_overlap/grouping/CWVIGGroupingPipelineTests.cpp`
+  - `benchmark/flyki_overlap/grouping/cwvig_grouping_pipeline_cli.cpp`
+  - `docs/cwvig_grouping_pipeline.md`
+  - `PROGRESS.md`
+- TDD RED 命令：
+  - `cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target cwvig_grouping_pipeline_tests --config Release`
+- TDD RED 输出：
+  - configure succeeded
+  - build failed as expected with `fatal error C1083: cannot open include file: grouping/CWVIGGroupingPipeline.h`
+- 编译命令：
+  - `$env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\gcc\current\bin;$env:USERPROFILE\scoop\apps\llvm\current\bin;$env:PATH"; cmake -S benchmark/flyki_overlap -B build/flyki -DCMAKE_BUILD_TYPE=Release`
+  - `cmake --build build/flyki --target cwvig_grouping_pipeline_tests --config Release`
+  - `cmake --build build/flyki --target cwvig_grouping_pipeline_cli --config Release`
+- 运行命令：
+  - `.\build\flyki\Release\cwvig_grouping_pipeline_tests.exe`
+  - `.\build\flyki\Release\cwvig_grouping_pipeline_cli.exe --mode synthetic --synthetic-function overlap --dimension-limit 3 --contexts 3 --seed 11 --delta 0.0001 --preset balanced --true-po .codex\phase4b_synthetic_true_po.txt --true-oo .codex\phase4b_synthetic_true_oo.txt --output-dir .codex\phase5a\synthetic_overlap_balanced --print-summary`
+  - `.\build\flyki\Release\cwvig_grouping_pipeline_cli.exe --mode synthetic --synthetic-function sphere --dimension-limit 3 --contexts 3 --seed 11 --delta 0.0001 --preset balanced --output-dir .codex\phase5a\synthetic_noedge_balanced --print-summary`
+  - `.\build\flyki\Release\cwvig_grouping_pipeline_cli.exe --mode synthetic --synthetic-function clique --dimension-limit 3 --contexts 3 --seed 11 --delta 0.0001 --preset conservative --output-dir .codex\phase5a\synthetic_clique_conservative --print-summary`
+  - `.\build\flyki\Release\cwvig_grouping_pipeline_cli.exe --mode flyki --func 1 --dimension-limit 10 --contexts 3 --seed 11 --delta 0.0001 --preset conservative --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-dir .codex\phase5a\flyki_f1_conservative --print-summary`
+  - `.\build\flyki\Release\cwvig_grouping_pipeline_cli.exe --mode flyki --func 1 --dimension-limit 10 --contexts 3 --seed 11 --delta 0.0001 --preset balanced --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-dir .codex\phase5a\flyki_f1_balanced --print-summary`
+  - `.\build\flyki\Release\cwvig_grouping_pipeline_cli.exe --mode flyki --func 1 --dimension-limit 10 --contexts 3 --seed 11 --delta 0.0001 --preset capped --true-po benchmark\flyki_overlap\1po.txt --true-oo benchmark\flyki_overlap\1oo.txt --output-dir .codex\phase5a\flyki_f1_capped --print-summary`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po .codex\phase5a\flyki_f1_conservative\predicted_groups.txt --oo .codex\phase5a\flyki_f1_conservative\predicted_overlap.txt --print-summary --dump-shared-map .codex\phase5a\flyki_f1_conservative\shared_map.csv`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po .codex\phase5a\flyki_f1_balanced\predicted_groups.txt --oo .codex\phase5a\flyki_f1_balanced\predicted_overlap.txt --print-summary --dump-shared-map .codex\phase5a\flyki_f1_balanced\shared_map.csv`
+  - `.\build\flyki\Release\grouping_source_cli.exe --source explicit_files --po .codex\phase5a\flyki_f1_capped\predicted_groups.txt --oo .codex\phase5a\flyki_f1_capped\predicted_overlap.txt --print-summary --dump-shared-map .codex\phase5a\flyki_f1_capped\shared_map.csv`
+- 输出：
+  - `cwvig_grouping_pipeline_tests`: `CWVIGGroupingPipelineTests passed`
+  - synthetic overlap balanced: `function_evaluations=36`, `groups=2`, `shared_variables=1`, `over_shared_ratio=0.333333333333`, `shared_f1=1`, `validation_errors=0`
+  - synthetic no-edge balanced: `function_evaluations=36`, `groups=3`, `shared_variables=0`, `over_shared_ratio=0`, `validation_errors=0`
+  - synthetic clique conservative: `function_evaluations=36`, `groups=2`, `shared_variables=0`, `over_shared_ratio=0`, `validation_errors=0`
+  - Flyki F1 conservative: `function_evaluations=540`, `graph_edges_after_pruning=2`, `groups=9`, `shared_variables=0`, `over_shared_ratio=0`, `validation_errors=0`, `mean_best_group_jaccard=0.888888888889`
+  - Flyki F1 balanced: `function_evaluations=540`, `graph_edges_after_pruning=7`, `groups=11`, `shared_variables=5`, `over_shared_ratio=0.5`, `validation_errors=0`, `mean_best_group_jaccard=0.636363636364`
+  - Flyki F1 capped: `function_evaluations=540`, `graph_edges_after_pruning=10`, `groups=9`, `shared_variables=5`, `over_shared_ratio=0.5`, `validation_errors=0`, `mean_best_group_jaccard=0.551851851852`
+  - explicit loader for all three Flyki preset outputs returned `Validation Errors: 0`
+- 结果文件：
+  - `E:\CWVIG_OSD\build\flyki\Release\cwvig_grouping_pipeline_tests.exe`
+  - `E:\CWVIG_OSD\build\flyki\Release\cwvig_grouping_pipeline_cli.exe`
+  - `E:\CWVIG_OSD\.codex\phase5a\synthetic_overlap_balanced\edges.csv`
+  - `E:\CWVIG_OSD\.codex\phase5a\synthetic_overlap_balanced\edge_metrics.csv`
+  - `E:\CWVIG_OSD\.codex\phase5a\synthetic_overlap_balanced\grouping_metrics.csv`
+  - `E:\CWVIG_OSD\.codex\phase5a\synthetic_overlap_balanced\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\.codex\phase5a\synthetic_noedge_balanced\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\.codex\phase5a\synthetic_clique_conservative\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\.codex\phase5a\flyki_f1_conservative\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\.codex\phase5a\flyki_f1_balanced\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\.codex\phase5a\flyki_f1_capped\pipeline_summary.txt`
+  - `E:\CWVIG_OSD\.codex\phase5a\comparison_summary.csv`
+  - `docs/cwvig_grouping_pipeline.md`
+- 关键观察：
+  - `cwvig_grouping_pipeline_cli` runs estimation, optional edge metrics, soft overlap grouping, po/oo validation, and reproducibility reports in one command.
+  - Presets are `conservative`, `balanced`, and `capped`; `balanced` is the default CLI preset.
+  - True `po/oo` files are only read after decomposition for `edge_metrics.csv` and `grouping_metrics.csv`.
+  - The pipeline treats all-zero/no-positive CWVIG evidence as an empty graph, preventing separable synthetic numerical noise from becoming rank-normalized interactions.
+  - Flyki F1 10D conservative, balanced, and capped presets all reduce over_shared_ratio below the Phase 4A/4B value of `1.0`.
+  - No SharedVariablePolicy, CBOG_CBD, CMAESO, CBOCC optimization behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - Presets are smoke-tested defaults, not final optimizer-performance settings.
+  - Conservative can under-share and fragment dense/clique-like synthetic structure because `mutual_top_k` is intentionally sparse.
+  - Balanced reduces over-sharing but still has `SharedVar-F1=0` on the current Flyki F1 10D after-the-fact truth check.
+  - Full 905D runs remain intentionally skipped.
+  - Full `cbocco` remains blocked by missing external CMA-ES files, unchanged from earlier phases.
+- 推荐下一目标：
+  - Add a label-free preset scoring rule or lightweight affiliation refinement to improve shared-variable precision before connecting predicted grouping files to a CBOCC method switch.
