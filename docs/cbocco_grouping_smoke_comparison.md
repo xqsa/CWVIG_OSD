@@ -61,6 +61,8 @@ results/phase7c/phase7c_smoke_comparison.md
 - first recorded FE and fitness
 - final recorded FE and fitness
 - logged row count
+- final FE difference from the first row in the comparison
+- relative final FE difference
 
 For Phase 7C it also reads `cbocco_stdout.txt` startup logs to fill grouping metadata in `comparison.csv`.
 
@@ -73,6 +75,8 @@ completed_predicted: final_fe=181600, final_fitness=1.81944e+10, logged_rows=100
 
 Both runs used command-line `maxfes=1000`, but final recorded FE was much larger. This is consistent with the existing `CBOG_CBD` flow where `testStage()` consumes evaluations before `optimizationStage()` checks the evaluation limit. Phase 7C records this behavior and does not change it.
 
+Phase 7D adds a dedicated FE audit in `docs/cbocco_budget_audit.md`. With the current Phase 7C result files, the parser reports `final_fe_difference=19600` and emits a “not FE-matched” warning.
+
 ## Interpretation Limits
 
 - Both runs use original hard-overlap `CBOG_CBD`.
@@ -80,3 +84,4 @@ Both runs used command-line `maxfes=1000`, but final recorded FE was much larger
 - The completed-predicted run uses singleton completion of a capped 10D grouping.
 - The completed-predicted run is not a fair full CWVIG optimization result.
 - Any fitness difference here is not an optimization performance claim.
+- Non-FE-matched comparisons must stay diagnostic unless a later protocol matches or normalizes final FE.

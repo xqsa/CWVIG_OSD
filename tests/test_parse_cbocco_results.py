@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from experiments.parse_cbocco_results import parse_result_file, write_smoke_report
+from experiments.parse_cbocco_results import add_fe_difference_columns, parse_result_file, write_smoke_report
 
 
 def test_parse_result_file_reads_first_and_final_rows(tmp_path: Path) -> None:
@@ -51,3 +51,18 @@ def test_write_smoke_report_includes_required_caveats(tmp_path: Path) -> None:
     assert "not a fair full CWVIG result" in text
     assert "not a performance claim" in text
     assert "162000" in text
+
+
+def test_add_fe_difference_columns_marks_non_fe_matched_rows() -> None:
+    rows = [
+        {"run_label": "legacy", "final_fe": 100},
+        {"run_label": "completed", "final_fe": 125},
+    ]
+
+    enriched, warning = add_fe_difference_columns(rows, tolerance=0)
+
+    assert enriched[0]["final_fe_difference"] == 0
+    assert enriched[0]["relative_fe_difference"] == 0.0
+    assert enriched[1]["final_fe_difference"] == 25
+    assert enriched[1]["relative_fe_difference"] == 0.25
+    assert "not FE-matched" in warning

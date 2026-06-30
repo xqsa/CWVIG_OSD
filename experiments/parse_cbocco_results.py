@@ -28,6 +28,8 @@ COMPARISON_COLUMNS = [
     "final_fe",
     "final_fitness",
     "logged_rows",
+    "final_fe_difference",
+    "relative_fe_difference",
     "exit_code",
 ]
 
@@ -128,6 +130,39 @@ def phase7c_rows(phase_dir: Path) -> list[dict[str, object]]:
     return rows
 
 
+def add_fe_difference_columns(
+    rows: Iterable[dict[str, object]],
+    *,
+    tolerance: int,
+) -> tuple[list[dict[str, object]], str]:
+    materialized = [dict(row) for row in rows]
+    if not materialized:
+        return materialized, ""
+
+    try:
+        baseline = int(materialized[0].get("final_fe"))
+    except (TypeError, ValueError):
+        baseline = 0
+
+    max_difference = 0
+    for row in materialized:
+        try:
+            final_fe = int(row.get("final_fe"))
+        except (TypeError, ValueError):
+            difference: int | str = ""
+            relative: float | str = ""
+        else:
+            difference = final_fe - baseline
+            relative = 0.0 if baseline == 0 else difference / baseline
+            max_difference = max(max_difference, abs(difference))
+        row["final_fe_difference"] = difference
+        row["relative_fe_difference"] = relative
+
+    if max_difference > tolerance:
+        return materialized, f"WARNING: comparison is not FE-matched; max final FE difference is {max_difference}."
+    return materialized, ""
+
+
 def write_comparison_csv(rows: Iterable[dict[str, object]], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", newline="", encoding="utf-8") as output:
@@ -136,7 +171,7 @@ def write_comparison_csv(rows: Iterable[dict[str, object]], output_path: Path) -
         writer.writerows(rows)
 
 
-def write_smoke_report(rows: Iterable[dict[str, object]], output_path: Path) -> None:
+def write_smoke_report(rows: Iterable[dict[str, object]], output_path: Path, warning: str = "") -> None:
     materialized = list(rows)
     lines = [
         "# Phase 7C CBOCC Grouping Smoke Comparison",
@@ -146,11 +181,17 @@ def write_smoke_report(rows: Iterable[dict[str, object]], output_path: Path) -> 
         "This is only a grouping-source integration smoke comparison.",
         "Any fitness difference is not a performance claim.",
         "",
-        "## Results",
-        "",
-        "| run_label | maxfes_arg | final_fe | final_fitness | logged_rows | exit_code |",
-        "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
+    if warning:
+        lines.extend([warning, ""])
+    lines.extend(
+        [
+            "## Results",
+            "",
+            "| run_label | maxfes_arg | final_fe | final_fitness | logged_rows | exit_code |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
     for row in materialized:
         lines.append(
             "| {run_label} | {maxfes_arg} | {final_fe} | {final_fitness} | {logged_rows} | {exit_code} |".format(
@@ -176,6 +217,8 @@ def write_smoke_report(rows: Iterable[dict[str, object]], output_path: Path) -> 
         "- The observed final FE can exceed the command-line maxfes argument because the original CBOG_CBD `testStage()` consumes evaluations before the optimization-stage limit check."
     )
     lines.append("- This phase records that behavior and does not change it.")
+    if warning:
+        lines.append("- Because this comparison is not FE-matched, interpret fitness differences only as smoke output.")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -186,12 +229,15 @@ def main() -> None:
     parser.add_argument("--phase-dir", type=Path, default=Path("results/phase7c"))
     parser.add_argument("--output", type=Path, default=Path("results/phase7c/comparison.csv"))
     parser.add_argument("--report", type=Path)
+    parser.add_argument("--fe-tolerance", type=int, default=0)
     args = parser.parse_args()
 
-    rows = phase7c_rows(args.phase_dir)
+    rows, warning = add_fe_difference_columns(phase7c_rows(args.phase_dir), tolerance=args.fe_tolerance)
     write_comparison_csv(rows, args.output)
     if args.report:
-        write_smoke_report(rows, args.report)
+        write_smoke_report(rows, args.report, warning)
+    if warning:
+        print(warning)
     print(f"wrote {args.output}")
 
 

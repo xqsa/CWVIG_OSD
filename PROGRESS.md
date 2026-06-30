@@ -1517,3 +1517,73 @@
   - The existing non-strict `maxfes` behavior remains unchanged.
 - 推荐下一目标：
   - Add a named experimental method label or adapter for future CWVIG_OSD runs only after the soft/shared-variable update policy is specified; keep current Phase 7C results as integration evidence, not performance evidence.
+
+## 2026-06-30 - Phase 7D CBCCO FE Budget Audit And Fair-Comparison Guardrails
+
+- 状态：done locally; FE budget behavior was audited and documented without changing `CBOG_CBD`, `CMAESO`, benchmark functions, or legacy CBCCO behavior.
+- 修改文件：
+  - `experiments/audit_cbocco_budget.py`
+  - `experiments/parse_cbocco_results.py`
+  - `scripts/run_cbocco_budget_audit.ps1`
+  - `tests/test_audit_cbocco_budget.py`
+  - `tests/test_parse_cbocco_results.py`
+  - `docs/cbocco_budget_audit.md`
+  - `docs/cbocco_grouping_smoke_comparison.md`
+  - `PROGRESS.md`
+- 代码审计结论：
+  - `CBOCC.cpp` parses the fourth positional argument into `options.maxfes`.
+  - `CBOCC.cpp` passes `options.maxfes` unchanged to `CBOG_CBD(..., MAXFES)`.
+  - `CBOCC.cpp` calls `testStage()` before `optimizationStage()`.
+  - `CBOG_CBD::optimizationStage()` is the only place checking `while (usedFEs < MAXFES)`.
+  - `CBOG_CBD::testStage()` runs `testRound=100` rounds before that gate.
+  - `CMAESO::calculateFitness()` increments `usedFEs` once per population member.
+  - Result rows are written in `CBOG_CBD::testStage()` and `optimizationStage()` as `usedFEs,gbestf`.
+  - Therefore command-line `maxfes` is not a strict global FE budget; it is an optimization-stage gate after fixed test-stage evaluations.
+- TDD red commands:
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_audit_cbocco_budget.py tests\test_parse_cbocco_results.py`
+  - Expected failures observed before implementation: missing `experiments.audit_cbocco_budget` and missing `add_fe_difference_columns`.
+- 构建与 sweep 命令：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; .\scripts\run_cbocco_budget_audit.ps1 -CMakeExe "$env:USERPROFILE\scoop\shims\cmake.exe" -PythonExe "C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"`
+  - The script configured `build/flyki_phase7d`, built `cbocco`, `cwvig_grouping_pipeline_cli`, `grouping_coverage_cli`, and `grouping_source_cli`.
+  - It generated capped CWVIG grouping, singleton-completed it to 905D, validated explicit loader output, and ran maxfes sweep `500,1000,2000` for legacy and completed-predicted grouping.
+- Phase 7D result files:
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\budget_summary.csv`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\budget_audit_report.md`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\completion_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\completed_loader_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\legacy_maxfes500\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\completed_predicted_maxfes500\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\legacy_maxfes1000\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\completed_predicted_maxfes1000\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\legacy_maxfes2000\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7d_budget_audit\completed_predicted_maxfes2000\1.1.100.CBOG-CBD.result.txt`
+- Phase 7D budget_summary.csv rows:
+  - `legacy_maxfes500`: `first_fe=1620`, `final_fe=162000`, `logged_rows=100`, `fe_increment_pattern=1620x99`, `final_fitness=1.14622e+11`, `groups=20`, `shared_variables=95`, `exit_code=0`.
+  - `completed_predicted_maxfes500`: `first_fe=1816`, `final_fe=181600`, `logged_rows=100`, `fe_increment_pattern=1816x99`, `final_fitness=1.06923e+10`, `groups=904`, `shared_variables=5`, `exit_code=0`.
+  - `legacy_maxfes1000`: `first_fe=1620`, `final_fe=162000`, `logged_rows=100`, `fe_increment_pattern=1620x99`, `final_fitness=6.11412e+10`, `groups=20`, `shared_variables=95`, `exit_code=0`.
+  - `completed_predicted_maxfes1000`: `first_fe=1816`, `final_fe=181600`, `logged_rows=100`, `fe_increment_pattern=1816x99`, `final_fitness=1.24871e+10`, `groups=904`, `shared_variables=5`, `exit_code=0`.
+  - `legacy_maxfes2000`: `first_fe=1620`, `final_fe=162000`, `logged_rows=100`, `fe_increment_pattern=1620x99`, `final_fitness=1.86649e+11`, `groups=20`, `shared_variables=95`, `exit_code=0`.
+  - `completed_predicted_maxfes2000`: `first_fe=1816`, `final_fe=181600`, `logged_rows=100`, `fe_increment_pattern=1816x99`, `final_fitness=1.68065e+10`, `groups=904`, `shared_variables=5`, `exit_code=0`.
+- Phase 7C guardrail update:
+  - Command: `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\parse_cbocco_results.py --phase-dir results\phase7c --output results\phase7c\comparison.csv --report results\phase7c\phase7c_smoke_comparison.md --fe-tolerance 0`
+  - Output warning: `WARNING: comparison is not FE-matched; max final FE difference is 19600.`
+  - `comparison.csv` now includes `final_fe_difference` and `relative_fe_difference`.
+  - Current Phase 7C rows: legacy `final_fe_difference=0`, completed-predicted `final_fe_difference=19600`, `relative_fe_difference=0.12098765432098765`.
+- 后续验证命令：
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_audit_cbocco_budget.py tests\test_parse_cbocco_results.py`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q` -> `8 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\grouping_accuracy.py`
+  - `cmake --build build\flyki_phase7d --target cbocco --config Release` -> `ninja: no work to do.`
+  - `git diff --check`
+- 关键观察：
+  - For `maxfes` values `500`, `1000`, and `2000`, final FE did not change within a grouping source because the fixed `testStage()` already exceeds these command budgets before `optimizationStage()` can enforce `MAXFES`.
+  - Legacy increments were `1620` per logged test-stage row; completed-predicted increments were `1816` per logged test-stage row.
+  - Grouping structure affects FE cost through number of optimizers and CMA-ES swarm sizes.
+  - `docs/cbocco_budget_audit.md` states that equal command `maxfes` is useful for interface smoke, but FE-matched or FE-normalized analysis is required before performance claims.
+  - No `SharedVariablePolicy`, `CBOG_CBD`, `CMAESO`, benchmark function logic, or legacy CBCCO behavior was changed.
+- 遗留风险：
+  - `results/*` is ignored by git, so Phase 7D artifacts are local verification outputs.
+  - The sweep only covers `func=1`, `seed=1`, and `maxfes={500,1000,2000}`.
+  - Larger command `maxfes` values may eventually enter `optimizationStage()` and should be audited separately before multi-seed claims.
+- 推荐下一目标：
+  - Define a fair-comparison protocol that either matches final FE explicitly or reports FE-normalized curves before adding any new CWVIG_OSD shared-variable update policy.
