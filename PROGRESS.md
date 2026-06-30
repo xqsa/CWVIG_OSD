@@ -1445,3 +1445,75 @@
   - The 10D predicted partial path is smoke-only and not a valid full-dimensional optimization comparison unless completed or replaced with full-coverage grouping.
   - `maxfes=1000` remains non-strict in original `CBOG_CBD` because `testStage()` consumes evaluations before the optimization-stage limit check.
   - The local shell did not have `python` on PATH; Python verification used the Codex workspace runtime path shown above.
+
+## 2026-06-30 - Phase 7C Legacy vs Completed-Predicted Hard-Overlap Smoke Comparison
+
+- 状态：done locally; legacy true grouping and completed-predicted explicit grouping both ran through the original hard-overlap `CBOG_CBD` path and produced comparable smoke artifacts.
+- 修改文件：
+  - `scripts/run_cbocco_grouping_smoke_compare.ps1`
+  - `experiments/parse_cbocco_results.py`
+  - `tests/test_parse_cbocco_results.py`
+  - `docs/cbocco_grouping_smoke_comparison.md`
+  - `PROGRESS.md`
+- TDD red commands:
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_parse_cbocco_results.py`
+  - First expected failure: `ModuleNotFoundError: No module named 'experiments.parse_cbocco_results'`.
+  - Second expected failure: `ImportError: cannot import name 'write_smoke_report'`.
+- 构建与运行命令：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; .\scripts\run_cbocco_grouping_smoke_compare.ps1 -CMakeExe "$env:USERPROFILE\scoop\shims\cmake.exe" -PythonExe "C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"`
+  - The script configured `build/flyki_phase7c`, built `cbocco`, `cwvig_grouping_pipeline_cli`, `grouping_coverage_cli`, and `grouping_source_cli`.
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\parse_cbocco_results.py --phase-dir results\phase7c --output results\phase7c\comparison.csv --report results\phase7c\phase7c_smoke_comparison.md`
+- Phase 7C generated grouping commands inside the script:
+  - `cwvig_grouping_pipeline_cli --config configs/cwvig_presets/capped_default.json --mode flyki --func 1 --dimension-limit 10 --seed 1 --contexts 3 --output-dir results\phase7c\predicted_10d`
+  - `grouping_coverage_cli --po results\phase7c\predicted_10d\predicted_groups.txt --oo results\phase7c\predicted_10d\predicted_overlap.txt --expected-dimension 905 --completion-policy singletons --output-po results\phase7c\completed_predicted_groups.txt --output-oo results\phase7c\completed_predicted_overlap.txt --print-summary`
+  - `grouping_source_cli --source explicit_files --po results\phase7c\completed_predicted_groups.txt --oo results\phase7c\completed_predicted_overlap.txt --print-summary`
+- Phase 7C cbocco commands inside the script:
+  - From `E:\CWVIG_OSD\benchmark\flyki_overlap`: `cbocco 1 CBCCO 1 1000 --grouping-source legacy_by_function --root . --require-full-coverage true`
+  - From `E:\CWVIG_OSD\benchmark\flyki_overlap`: `cbocco 1 CBCCO 1 1000 --grouping-source explicit_files --po E:\CWVIG_OSD\results\phase7c\completed_predicted_groups.txt --oo E:\CWVIG_OSD\results\phase7c\completed_predicted_overlap.txt --require-full-coverage true`
+- 结果文件：
+  - `E:\CWVIG_OSD\results\phase7c\predicted_10d\predicted_groups.txt`
+  - `E:\CWVIG_OSD\results\phase7c\predicted_10d\predicted_overlap.txt`
+  - `E:\CWVIG_OSD\results\phase7c\completed_predicted_groups.txt`
+  - `E:\CWVIG_OSD\results\phase7c\completed_predicted_overlap.txt`
+  - `E:\CWVIG_OSD\results\phase7c\completion_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7c\completed_loader_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7c\legacy\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7c\legacy\cbocco_stdout.txt`
+  - `E:\CWVIG_OSD\results\phase7c\legacy\cbocco_stderr.txt`
+  - `E:\CWVIG_OSD\results\phase7c\legacy\exit_code.txt`
+  - `E:\CWVIG_OSD\results\phase7c\completed_predicted\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7c\completed_predicted\cbocco_stdout.txt`
+  - `E:\CWVIG_OSD\results\phase7c\completed_predicted\cbocco_stderr.txt`
+  - `E:\CWVIG_OSD\results\phase7c\completed_predicted\exit_code.txt`
+  - `E:\CWVIG_OSD\results\phase7c\comparison.csv`
+  - `E:\CWVIG_OSD\results\phase7c\phase7c_smoke_comparison.md`
+- completion and loader validation:
+  - Before completion: inferred dimension `10`, covered variables `10`, missing variables `895`, coverage ratio `0.0110497237569`, full coverage `false`.
+  - After singleton completion: inferred dimension `905`, covered variables `905`, missing variables `0`, coverage ratio `1`, full coverage `true`, validation errors `0`.
+  - Explicit loader validation: number of groups `904`, dimension `905`, unique variables `905`, shared variables `5`, validation errors `0`.
+- comparison.csv rows:
+  - legacy: `func=1`, `method=CBCCO`, `seed=1`, `maxfes_arg=1000`, `grouping_source=legacy_by_function`, `completion_policy=none`, `expected_dimension=905`, `grouping_dimension=905`, `covered_variables=905`, `shared_variables=95`, `groups=20`, `first_fe=1620`, `first_fitness=5.07231e+16`, `final_fe=162000`, `final_fitness=9.70409e+10`, `logged_rows=100`, `exit_code=0`.
+  - completed_predicted: `func=1`, `method=CBCCO`, `seed=1`, `maxfes_arg=1000`, `grouping_source=explicit_files`, `completion_policy=singletons`, `expected_dimension=905`, `grouping_dimension=905`, `covered_variables=905`, `shared_variables=5`, `groups=904`, `first_fe=1816`, `first_fitness=5.58343e+13`, `final_fe=181600`, `final_fitness=1.81944e+10`, `logged_rows=100`, `exit_code=0`.
+- maxfes/FE 观察：
+  - Both runs used command-line `maxfes=1000`.
+  - Legacy final recorded FE was `162000`.
+  - Completed-predicted final recorded FE was `181600`.
+  - This is consistent with the existing original `CBOG_CBD` behavior where `testStage()` consumes evaluations before `optimizationStage()` checks the evaluation limit.
+  - Phase 7C records this behavior and does not change it.
+- 后续验证命令：
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_parse_cbocco_results.py`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q` -> `5 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\grouping_accuracy.py`
+  - `cmake --build build\flyki_phase7c --target cbocco --config Release` -> `ninja: no work to do.`
+  - `git diff --check`
+- 关键观察：
+  - `experiments/parse_cbocco_results.py` parses no-header `FE,fitness` result files and generates the required `comparison.csv`.
+  - The first full script run failed only at the final Python parser invocation because PowerShell unwrapped a single-element Python command array; the script was fixed and rerun end-to-end successfully. After the parser recorded external singleton completion explicitly, the full script was rerun again and regenerated `comparison.csv` and `phase7c_smoke_comparison.md`.
+  - `results/phase7c/phase7c_smoke_comparison.md` explicitly states that both runs use original hard-overlap `CBOG_CBD`, completed-predicted grouping is not a fair full CWVIG result, and fitness differences are not performance claims.
+  - No `SharedVariablePolicy`, `CBOG_CBD`, `CMAESO`, benchmark function logic, or original legacy CBCCO behavior was changed.
+- 遗留风险：
+  - `results/*` is ignored by git, so Phase 7C smoke artifacts are local verification outputs rather than committed research data.
+  - The completed-predicted grouping uses singleton completion from a capped 10D grouping; it is suitable only for grouping-source integration smoke.
+  - The existing non-strict `maxfes` behavior remains unchanged.
+- 推荐下一目标：
+  - Add a named experimental method label or adapter for future CWVIG_OSD runs only after the soft/shared-variable update policy is specified; keep current Phase 7C results as integration evidence, not performance evidence.
