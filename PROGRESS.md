@@ -1332,3 +1332,116 @@
   - `results/*` is ignored by git, so Phase 7A artifacts are local verification outputs rather than committed research data.
 - 推荐下一目标：
   - Add a named CWVIG_OSD method branch or adapter that can run explicit predicted grouping as a separate experimental condition while still preserving `CBCCO` as the untouched baseline.
+
+## 2026-06-30 - Phase 7B Grouping Coverage Audit And cbocco Guardrails
+
+- 状态：done locally; coverage audit, completion policy, and startup guardrails are implemented without changing `CBOG_CBD`, `CMAESO`, or benchmark function logic.
+- 修改文件：
+  - `benchmark/flyki_overlap/CBOCC.cpp`
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLine.cpp`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLine.h`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLineTests.cpp`
+  - `benchmark/flyki_overlap/grouping/GroupingCoverageAudit.cpp`
+  - `benchmark/flyki_overlap/grouping/GroupingCoverageAudit.h`
+  - `benchmark/flyki_overlap/grouping/GroupingCoverageTests.cpp`
+  - `benchmark/flyki_overlap/grouping/grouping_coverage_cli.cpp`
+  - `docs/grouping_coverage_audit.md`
+  - `docs/cbocco_explicit_grouping.md`
+  - `PROGRESS.md`
+- 配置命令：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; & $env:USERPROFILE\scoop\shims\cmake.exe -S benchmark/flyki_overlap -B build/flyki_phase7b -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\gcc.exe" -DCMAKE_CXX_COMPILER="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\g++.exe" -DCMAKE_MAKE_PROGRAM="$env:USERPROFILE\scoop\shims\ninja.exe" -DCMAES_ROOT=third_party/cmaes`
+- TDD red command:
+  - `cmake --build build/flyki_phase7b --target grouping_coverage_tests --config Release`
+  - Expected failure observed before implementation: missing `grouping/GroupingCoverageAudit.h`.
+- 构建与测试命令：
+  - `cmake --build build/flyki_phase7b --target grouping_coverage_tests cbocco_argument_tests grouping_coverage_cli --config Release`
+  - `.\build\flyki_phase7b\grouping_coverage_tests.exe`
+  - `.\build\flyki_phase7b\cbocco_argument_tests.exe`
+  - `cmake --build build/flyki_phase7b --target cbocco --config Release`
+  - `cmake --build build/flyki_phase7b --target grouping_source_cli --config Release`
+  - `cmake --build build/flyki_phase7b --config Release`
+  - `.\build\flyki_phase7b\grouping_metrics_tests.exe`
+  - `.\build\flyki_phase7b\grouping_provider_tests.exe`
+  - `.\build\flyki_phase7b\cbocco_grouping_loader_tests.exe`
+  - `.\build\flyki_phase7b\grouping_source_tests.exe`
+  - `.\build\flyki_phase7b\grouping_coverage_tests.exe`
+  - `.\build\flyki_phase7b\cbocco_argument_tests.exe`
+  - `.\build\flyki_phase7b\probe_harness_tests.exe`
+  - `.\build\flyki_phase7b\cwvig_estimator_tests.exe`
+  - `.\build\flyki_phase7b\cwvig_edge_eval_tests.exe`
+  - `.\build\flyki_phase7b\soft_overlap_tests.exe`
+  - `.\build\flyki_phase7b\soft_overlap_calibration_tests.exe`
+  - `.\build\flyki_phase7b\soft_overlap_pruning_tests.exe`
+  - `.\build\flyki_phase7b\cwvig_grouping_pipeline_tests.exe`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\grouping_accuracy.py`
+- coverage audit 命令：
+  - `.\build\flyki_phase7b\grouping_coverage_cli.exe --po benchmark\flyki_overlap\1po.txt --oo benchmark\flyki_overlap\1oo.txt --expected-dimension 905 --print-summary`
+  - `.\build\flyki_phase7b\grouping_coverage_cli.exe --po results\phase7a_predicted_f1_10d\predicted_groups.txt --oo results\phase7a_predicted_f1_10d\predicted_overlap.txt --expected-dimension 905 --print-summary`
+  - `.\build\flyki_phase7b\grouping_coverage_cli.exe --po results\phase7a_predicted_f1_10d\predicted_groups.txt --oo results\phase7a_predicted_f1_10d\predicted_overlap.txt --expected-dimension 905 --completion-policy singletons --output-po results\phase7b_coverage_audit\predicted_10d_completed_singletons_po.txt --output-oo results\phase7b_coverage_audit\predicted_10d_completed_singletons_oo.txt --print-summary`
+- coverage audit 结果文件：
+  - `E:\CWVIG_OSD\results\phase7b_coverage_audit\legacy_f1_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7b_coverage_audit\predicted_10d_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7b_coverage_audit\predicted_10d_completed_singletons_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7b_coverage_audit\predicted_10d_completed_singletons_po.txt`
+  - `E:\CWVIG_OSD\results\phase7b_coverage_audit\predicted_10d_completed_singletons_oo.txt`
+  - `E:\CWVIG_OSD\results\phase7b_coverage_audit\predicted_10d_completed_singletons_loader_summary.txt`
+- coverage audit 关键输出：
+  - Legacy F1: expected dimension `905`, covered unique variables `905`, missing variable count `0`, duplicate occurrences `95`, out-of-range variables `0`, coverage ratio `1`, full coverage `true`, validation errors `0`.
+  - Phase 7A 10D predicted grouping: inferred dimension `10`, covered unique variables `10`, missing variable count `895`, duplicate occurrences `18`, out-of-range variables `0`, coverage ratio `0.0110497237569`, full coverage `false`, validation errors `0`.
+  - Singleton completion: inferred dimension `905`, covered unique variables `905`, missing variable count `0`, full coverage `true`, validation errors `0`.
+  - Independent loader validation of completed singleton files: number of groups `904`, dimension `905`, unique variables `905`, shared variables `5`, validation errors `0`.
+- cbocco strict legacy smoke 命令：
+  - From `E:\CWVIG_OSD\benchmark\flyki_overlap`: `& ..\..\build\flyki_phase7b\cbocco.exe 1 CBCCO 1 1000 --grouping-source legacy_by_function --root . --require-full-coverage true`
+- cbocco strict legacy 结果文件：
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_legacy_full\legacy_full_stdout.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_legacy_full\legacy_full_stderr.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_legacy_full\legacy_full_exit_code.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_legacy_full\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_legacy_full\CBCCOtimefile.txt`
+  - Last result row: `162000,1.29171e+11`
+  - `CBCCOtimefile.txt`: `1,77`
+- cbocco explicit 10D strict failure 命令：
+  - From `E:\CWVIG_OSD`: `.\build\flyki_phase7b\cbocco.exe 1 CBCCO 1 1000 --grouping-source explicit_files --po results\phase7a_predicted_f1_10d\predicted_groups.txt --oo results\phase7a_predicted_f1_10d\predicted_overlap.txt --require-full-coverage true`
+- cbocco explicit 10D strict failure 结果文件：
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\strict_stdout.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\strict_stderr.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\strict_exit_code.txt`
+  - Exit code: `1`
+  - No optimization result file was produced.
+- cbocco explicit 10D allow-partial smoke 命令：
+  - From `E:\CWVIG_OSD\benchmark\flyki_overlap`: `& ..\..\build\flyki_phase7b\cbocco.exe 1 CBCCO 1 1000 --grouping-source explicit_files --po E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\predicted_groups.txt --oo E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\predicted_overlap.txt --allow-partial-grouping true`
+- cbocco explicit 10D allow-partial 结果文件：
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\allow_partial_stdout.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\allow_partial_stderr.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\allow_partial_exit_code.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\CBCCOtimefile.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_partial\errcmaes.err`
+  - Last result row: `2600,5.99031e+16`
+  - `CBCCOtimefile.txt`: `1,1`
+- cbocco explicit 10D singleton completion smoke 命令：
+  - From `E:\CWVIG_OSD\benchmark\flyki_overlap`: `& ..\..\build\flyki_phase7b\cbocco.exe 1 CBCCO 1 1000 --grouping-source explicit_files --po E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\predicted_groups.txt --oo E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\predicted_overlap.txt --completion-policy singletons --require-full-coverage true`
+- cbocco explicit 10D singleton completion 结果文件：
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_completed\completed_stdout.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_completed\completed_stderr.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_completed\completed_exit_code.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_completed\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_completed\CBCCOtimefile.txt`
+  - `E:\CWVIG_OSD\results\phase7b_cbocco_predicted_completed\errcmaes.err`
+  - Last result row: `181600,2.22125e+10`
+  - `CBCCOtimefile.txt`: `1,98`
+- 关键观察：
+  - `GroupingCoverageAudit` reports expected dimension, inferred grouping dimension, coverage counts, duplicate occurrences, out-of-range variables, coverage ratio, full coverage, and missing variable ids.
+  - `expectedFlykiOverlapDimension(func)` validates F1-F12 and currently uses the documented Flyki overlap dimension `905`, matching `BenchmarkEvaluator`, without constructing benchmark objects.
+  - Startup logging now prints coverage and policy fields before constructing `CBOG_CBD`.
+  - Strict 10D predicted grouping fails before optimization with exit code `1` and no result file.
+  - Allow-partial predicted grouping runs only when `--allow-partial-grouping true` is explicit and emits a warning.
+  - Singleton completion preserves existing groups and appends missing variables as singleton groups; the completed run starts with `Number Of Groups: 904`, `Full Coverage: true`, and `Validation Errors: 0`.
+  - During strict-failure debugging, `Benchmarks` construction was moved after coverage enforcement because Flyki function destructors free lazily initialized fields and can fail on early exits before any `compute()` call. This changes startup order only; no optimizer logic was changed.
+- 遗留风险：
+  - `results/*` remains ignored by git, so Phase 7B smoke artifacts are local verification outputs rather than committed research data.
+  - The 10D predicted partial path is smoke-only and not a valid full-dimensional optimization comparison unless completed or replaced with full-coverage grouping.
+  - `maxfes=1000` remains non-strict in original `CBOG_CBD` because `testStage()` consumes evaluations before the optimization-stage limit check.
+  - The local shell did not have `python` on PATH; Python verification used the Codex workspace runtime path shown above.

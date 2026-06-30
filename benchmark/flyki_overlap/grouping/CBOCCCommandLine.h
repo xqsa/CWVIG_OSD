@@ -16,6 +16,9 @@ struct CBOCCCommandLine {
     std::filesystem::path root = ".";
     std::filesystem::path po_path;
     std::filesystem::path oo_path;
+    bool require_full_coverage = false;
+    bool allow_partial_grouping = false;
+    std::string completion_policy = "none";
 };
 
 CBOCCCommandLine parseCBOCCCommandLine(int argc, char **argv);

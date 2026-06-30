@@ -74,6 +74,8 @@ add_library(grouping_core STATIC
     grouping/CBOCCGroupingLoader.h
     grouping/GroupingData.cpp
     grouping/GroupingData.h
+    grouping/GroupingCoverageAudit.cpp
+    grouping/GroupingCoverageAudit.h
     grouping/GroupingIO.cpp
     grouping/GroupingIO.h
     grouping/GroupingMetrics.cpp
@@ -121,6 +123,12 @@ add_executable(grouping_source_cli
 )
 target_link_libraries(grouping_source_cli PRIVATE grouping_core)
 target_compile_features(grouping_source_cli PRIVATE cxx_std_17)
+
+add_executable(grouping_coverage_cli
+    grouping/grouping_coverage_cli.cpp
+)
+target_link_libraries(grouping_coverage_cli PRIVATE grouping_core)
+target_compile_features(grouping_coverage_cli PRIVATE cxx_std_17)
 
 add_executable(probe_smoke_cli
     probe/probe_smoke_cli.cpp
@@ -181,6 +189,12 @@ add_executable(grouping_source_tests
 )
 target_link_libraries(grouping_source_tests PRIVATE grouping_core)
 target_compile_features(grouping_source_tests PRIVATE cxx_std_17)
+
+add_executable(grouping_coverage_tests
+    grouping/GroupingCoverageTests.cpp
+)
+target_link_libraries(grouping_coverage_tests PRIVATE grouping_core)
+target_compile_features(grouping_coverage_tests PRIVATE cxx_std_17)
 
 add_executable(cbocco_argument_tests
     grouping/CBOCCCommandLineTests.cpp

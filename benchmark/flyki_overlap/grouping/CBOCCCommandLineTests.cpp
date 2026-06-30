@@ -81,6 +81,22 @@ int main()
         "benchmark/flyki_overlap"});
     require(rooted.root == "benchmark/flyki_overlap", "legacy explicit root");
 
+    const auto guarded = parse({
+        "cbocco",
+        "1",
+        "CBCCO",
+        "5",
+        "4000",
+        "--require-full-coverage",
+        "true",
+        "--allow-partial-grouping",
+        "false",
+        "--completion-policy",
+        "singletons"});
+    require(guarded.require_full_coverage, "require full coverage flag");
+    require(!guarded.allow_partial_grouping, "allow partial grouping flag");
+    require(guarded.completion_policy == "singletons", "completion policy flag");
+
     requireThrowsContaining(
         []() { parse({"cbocco", "1", "CBCCO", "1"}); },
         "Usage",
@@ -99,6 +115,14 @@ int main()
         []() { parse({"cbocco", "1", "CBCCO", "1", "1000", "--unexpected", "x"}); },
         "Invalid argument",
         "unknown option");
+    requireThrowsContaining(
+        []() { parse({"cbocco", "1", "CBCCO", "1", "1000", "--allow-partial-grouping", "maybe"}); },
+        "Expected true or false",
+        "invalid boolean");
+    requireThrowsContaining(
+        []() { parse({"cbocco", "1", "CBCCO", "1", "1000", "--completion-policy", "mystery"}); },
+        "Invalid completion policy",
+        "invalid completion policy");
 
     std::cout << "CBOCCCommandLineTests passed\n";
     return 0;

@@ -1,5 +1,7 @@
 #include "grouping/CBOCCCommandLine.h"
 
+#include "grouping/GroupingCoverageAudit.h"
+
 #include <stdexcept>
 #include <string>
 
@@ -9,7 +11,24 @@ namespace {
 
 bool needsValue(const std::string &key)
 {
-    return key == "--grouping-source" || key == "--po" || key == "--oo" || key == "--root";
+    return key == "--grouping-source"
+        || key == "--po"
+        || key == "--oo"
+        || key == "--root"
+        || key == "--require-full-coverage"
+        || key == "--allow-partial-grouping"
+        || key == "--completion-policy";
+}
+
+bool parseBool(const std::string &key, const std::string &value)
+{
+    if (value == "true") {
+        return true;
+    }
+    if (value == "false") {
+        return false;
+    }
+    throw std::runtime_error("Expected true or false for " + key + ": " + value);
 }
 
 }  // namespace
@@ -17,9 +36,13 @@ bool needsValue(const std::string &key)
 std::string cboccoUsage()
 {
     return "Usage: cbocco <func> CBCCO <seed> <maxfes> "
-           "[--grouping-source legacy_by_function] [--root PATH]\n"
+           "[--grouping-source legacy_by_function] [--root PATH] "
+           "[--require-full-coverage true|false] [--allow-partial-grouping true|false] "
+           "[--completion-policy none|singletons|tail_group]\n"
            "   or: cbocco <func> CBCCO <seed> <maxfes> "
-           "--grouping-source explicit_files --po PATH --oo PATH";
+           "--grouping-source explicit_files --po PATH --oo PATH "
+           "[--require-full-coverage true|false] [--allow-partial-grouping true|false] "
+           "[--completion-policy none|singletons|tail_group]";
 }
 
 CBOCCCommandLine parseCBOCCCommandLine(const int argc, char **argv)
@@ -48,6 +71,13 @@ CBOCCCommandLine parseCBOCCCommandLine(const int argc, char **argv)
             options.oo_path = value;
         } else if (key == "--root") {
             options.root = value;
+        } else if (key == "--require-full-coverage") {
+            options.require_full_coverage = parseBool(key, value);
+        } else if (key == "--allow-partial-grouping") {
+            options.allow_partial_grouping = parseBool(key, value);
+        } else if (key == "--completion-policy") {
+            parseCompletionPolicy(value);
+            options.completion_policy = value;
         }
     }
 

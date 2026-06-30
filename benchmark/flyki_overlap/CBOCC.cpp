@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <sstream>
 #include <exception>
+#include <stdexcept>
 #include <filesystem>
 #include <memory>
 #include "Header.h"
@@ -15,6 +16,7 @@
 #include "CBOG_CBD.h"
 #include "grouping/CBOCCCommandLine.h"
 #include "grouping/CBOCCGroupingLoader.h"
+#include "grouping/GroupingCoverageAudit.h"
 #include "grouping/GroupingMetrics.h"
 
 using namespace std;
@@ -85,9 +87,41 @@ flyki::grouping::LegacyGroupingView loadGrouping(const flyki::grouping::CBOCCCom
 	return flyki::grouping::loadLegacyGroupingForFunction(options.func, options.root);
 }
 
+std::string coverageProblemMessage(const flyki::grouping::GroupingCoverageAudit& audit) {
+	std::ostringstream output;
+	output << "Grouping coverage is partial: missing_variable_count=" << audit.missing_variable_count
+		<< ", out_of_range_variables=" << audit.out_of_range_variables
+		<< ", coverage_ratio=" << audit.coverage_ratio;
+	return output.str();
+}
+
+void enforceCoveragePolicy(
+	const flyki::grouping::CBOCCCommandLine& options,
+	const flyki::grouping::GroupingCoverageAudit& audit) {
+	if (audit.out_of_range_variables > 0) {
+		throw std::runtime_error("Grouping contains out-of-range variables for the benchmark dimension.");
+	}
+	if (audit.full_coverage) {
+		return;
+	}
+
+	const auto problem = coverageProblemMessage(audit);
+	if (options.require_full_coverage || !options.allow_partial_grouping) {
+		throw std::runtime_error(problem + ". Pass --allow-partial-grouping true for smoke-only partial runs, "
+			"or use --completion-policy singletons|tail_group.");
+	}
+	std::cerr << "WARNING: " << problem
+		<< ". The run is allowed only because --allow-partial-grouping true was set.\n";
+}
+
 void printStartupLog(
 	const flyki::grouping::CBOCCCommandLine& options,
-	const flyki::grouping::LegacyGroupingView& grouping) {
+	const flyki::grouping::LegacyGroupingView& original_grouping,
+	const flyki::grouping::LegacyGroupingView& grouping,
+	const int expected_dimension,
+	const flyki::grouping::GroupingCoverageAudit& original_audit,
+	const flyki::grouping::GroupingCoverageAudit& audit,
+	const flyki::grouping::CompletionPolicy completion_policy) {
 	const auto po_path = options.grouping_source == "explicit_files" ? options.po_path : legacyPath(options, "po.txt");
 	const auto oo_path = options.grouping_source == "explicit_files" ? options.oo_path : legacyPath(options, "oo.txt");
 	const auto validation_errors = flyki::grouping::validateLegacyGroupingView(grouping);
@@ -99,8 +133,21 @@ void printStartupLog(
 		<< "Grouping Source: " << options.grouping_source << '\n'
 		<< "Po Path: " << po_path.string() << '\n'
 		<< "Oo Path: " << oo_path.string() << '\n'
+		<< "Expected Benchmark Dimension: " << expected_dimension << '\n'
+		<< "Original Grouping Inferred Dimension: " << original_grouping.dimension << '\n'
+		<< "Original Covered Unique Variables: " << original_audit.covered_unique_variables << '\n'
+		<< "Original Missing Variable Count: " << original_audit.missing_variable_count << '\n'
+		<< "Completion Policy: " << flyki::grouping::completionPolicyName(completion_policy) << '\n'
+		<< "Partial Grouping Allowed: " << (options.allow_partial_grouping ? "true" : "false") << '\n'
+		<< "Require Full Coverage: " << (options.require_full_coverage ? "true" : "false") << '\n'
 		<< "Number Of Groups: " << grouping.number_of_groups << '\n'
-		<< "Dimension: " << grouping.dimension << '\n'
+		<< "Grouping Inferred Dimension: " << grouping.dimension << '\n'
+		<< "Covered Unique Variables: " << audit.covered_unique_variables << '\n'
+		<< "Missing Variable Count: " << audit.missing_variable_count << '\n'
+		<< "Duplicate Variable Occurrences: " << audit.duplicate_variable_occurrences << '\n'
+		<< "Out Of Range Variables: " << audit.out_of_range_variables << '\n'
+		<< "Coverage Ratio: " << audit.coverage_ratio << '\n'
+		<< "Full Coverage: " << (audit.full_coverage ? "true" : "false") << '\n'
 		<< "Shared Variables: " << flyki::grouping::extractSharedVariablesFromOo(grouping.overiablesRedandunt).size() << '\n'
 		<< "Validation Errors: " << validation_errors.size() << '\n';
 }
@@ -114,12 +161,21 @@ int main(int argc, char* argv[]) {
 			return 0;
 		}
 		const auto options = flyki::grouping::parseCBOCCCommandLine(argc, argv);
-		int DIM = 905;
-		std::unique_ptr<Benchmarks> fp(generateFuncObj(options.func));
-		const auto grouping = loadGrouping(options);
-		printStartupLog(options, grouping);
+		const int expected_dimension = flyki::grouping::expectedFlykiOverlapDimension(options.func);
+		int DIM = expected_dimension;
+		const auto original_grouping = loadGrouping(options);
+		const auto completion_policy = flyki::grouping::parseCompletionPolicy(options.completion_policy);
+		const auto original_audit = flyki::grouping::auditGroupingCoverage(original_grouping, expected_dimension);
+		const auto grouping = flyki::grouping::completeGroupingCoverage(
+			original_grouping,
+			expected_dimension,
+			completion_policy);
+		const auto audit = flyki::grouping::auditGroupingCoverage(grouping, expected_dimension);
+		printStartupLog(options, original_grouping, grouping, expected_dimension, original_audit, audit, completion_policy);
+		enforceCoveragePolicy(options, audit);
 
 		if (options.method == "CBCCO") {
+			std::unique_ptr<Benchmarks> fp(generateFuncObj(options.func));
 			CBOG_CBD oneSolver(fp.get(), DIM, options.seed, 100, grouping.groups, grouping.overiables, grouping.overiablesRedandunt, grouping.sharedvar_group_pos, options.maxfes);
 			oneSolver.testStage();
 			oneSolver.optimizationStage();
