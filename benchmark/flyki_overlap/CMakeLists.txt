@@ -68,6 +68,8 @@ target_link_libraries(probe_core PUBLIC flyki_core)
 target_compile_features(probe_core PUBLIC cxx_std_17)
 
 add_library(grouping_core STATIC
+    grouping/CBOCCCommandLine.cpp
+    grouping/CBOCCCommandLine.h
     grouping/CBOCCGroupingLoader.cpp
     grouping/CBOCCGroupingLoader.h
     grouping/GroupingData.cpp
@@ -179,6 +181,12 @@ add_executable(grouping_source_tests
 )
 target_link_libraries(grouping_source_tests PRIVATE grouping_core)
 target_compile_features(grouping_source_tests PRIVATE cxx_std_17)
+
+add_executable(cbocco_argument_tests
+    grouping/CBOCCCommandLineTests.cpp
+)
+target_link_libraries(cbocco_argument_tests PRIVATE grouping_core)
+target_compile_features(cbocco_argument_tests PRIVATE cxx_std_17)
 
 add_executable(probe_harness_tests
     probe/ProbeHarnessTests.cpp

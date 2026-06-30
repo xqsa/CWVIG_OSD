@@ -6,11 +6,16 @@
 #include <list>
 #include <algorithm>
 #include <sstream>
+#include <exception>
+#include <filesystem>
+#include <memory>
 #include "Header.h"
 #include <float.h>
 #include <cstdlib>
 #include "CBOG_CBD.h"
+#include "grouping/CBOCCCommandLine.h"
 #include "grouping/CBOCCGroupingLoader.h"
+#include "grouping/GroupingMetrics.h"
 
 using namespace std;
 
@@ -59,25 +64,73 @@ Benchmarks* generateFuncObj(int funcID) {
 	return fp;
 }
 
-int main(int argc, char* argv[]) {
-	int func = atoi(argv[1]);
-	string method(argv[2]);
-	int seed = atoi(argv[3]);
-	long int maxfes = atol(argv[4]);
-	int taskId = seed;
-	int DIM = 905;
-	Benchmarks* fp;
-	fp = generateFuncObj(func);
-	const auto grouping = flyki::grouping::loadLegacyGroupingForFunction(func, ".");
+namespace {
 
-	if (method == "CBCCO") {
-		CBOG_CBD oneSolver(fp, DIM, seed, 100, grouping.groups, grouping.overiables, grouping.overiablesRedandunt, grouping.sharedvar_group_pos, maxfes);
-		oneSolver.testStage();
-		oneSolver.optimizationStage();
+bool isHelpRequest(int argc, char* argv[]) {
+	if (argc != 2) {
+		return false;
 	}
-	else {
-		cout << "No such way!!" << endl;
+	const string arg(argv[1]);
+	return arg == "--help" || arg == "-h";
+}
+
+std::filesystem::path legacyPath(const flyki::grouping::CBOCCCommandLine& options, const string& suffix) {
+	return options.root / (std::to_string(options.func) + suffix);
+}
+
+flyki::grouping::LegacyGroupingView loadGrouping(const flyki::grouping::CBOCCCommandLine& options) {
+	if (options.grouping_source == "explicit_files") {
+		return flyki::grouping::loadLegacyGroupingFromFiles(options.po_path, options.oo_path);
 	}
-	delete fp;
-	return 0;
+	return flyki::grouping::loadLegacyGroupingForFunction(options.func, options.root);
+}
+
+void printStartupLog(
+	const flyki::grouping::CBOCCCommandLine& options,
+	const flyki::grouping::LegacyGroupingView& grouping) {
+	const auto po_path = options.grouping_source == "explicit_files" ? options.po_path : legacyPath(options, "po.txt");
+	const auto oo_path = options.grouping_source == "explicit_files" ? options.oo_path : legacyPath(options, "oo.txt");
+	const auto validation_errors = flyki::grouping::validateLegacyGroupingView(grouping);
+	std::cout << "CBOCC startup" << '\n'
+		<< "Function ID: " << options.func << '\n'
+		<< "Method: " << options.method << '\n'
+		<< "Seed: " << options.seed << '\n'
+		<< "MaxFEs argument: " << options.maxfes << '\n'
+		<< "Grouping Source: " << options.grouping_source << '\n'
+		<< "Po Path: " << po_path.string() << '\n'
+		<< "Oo Path: " << oo_path.string() << '\n'
+		<< "Number Of Groups: " << grouping.number_of_groups << '\n'
+		<< "Dimension: " << grouping.dimension << '\n'
+		<< "Shared Variables: " << flyki::grouping::extractSharedVariablesFromOo(grouping.overiablesRedandunt).size() << '\n'
+		<< "Validation Errors: " << validation_errors.size() << '\n';
+}
+
+}  // namespace
+
+int main(int argc, char* argv[]) {
+	try {
+		if (isHelpRequest(argc, argv)) {
+			std::cout << flyki::grouping::cboccoUsage() << '\n';
+			return 0;
+		}
+		const auto options = flyki::grouping::parseCBOCCCommandLine(argc, argv);
+		int DIM = 905;
+		std::unique_ptr<Benchmarks> fp(generateFuncObj(options.func));
+		const auto grouping = loadGrouping(options);
+		printStartupLog(options, grouping);
+
+		if (options.method == "CBCCO") {
+			CBOG_CBD oneSolver(fp.get(), DIM, options.seed, 100, grouping.groups, grouping.overiables, grouping.overiablesRedandunt, grouping.sharedvar_group_pos, options.maxfes);
+			oneSolver.testStage();
+			oneSolver.optimizationStage();
+		}
+		else {
+			cout << "No such way!!" << endl;
+		}
+		return 0;
+	} catch (const std::exception& error) {
+		std::cerr << "cbocco: " << error.what() << '\n'
+			<< flyki::grouping::cboccoUsage() << '\n';
+		return 1;
+	}
 }

@@ -1224,3 +1224,111 @@
   - GCC/Ninja path is explicit in the verified commands because the current shell did not initially include Scoop shims in PATH.
   - The smoke run is the original CBCCO path only; CWVIG-OSD shared-variable-aware optimization is still a later phase.
   - `results/*` is ignored by git, so smoke artifacts are local verification outputs rather than committed research results.
+
+## 2026-06-30 - Phase 7A Explicit Predicted Grouping Source For cbocco
+
+- 状态：done locally; `cbocco` accepts explicit predicted `po/oo` files while preserving original `CBCCO` and hard-overlap optimizer behavior
+- 修改文件：
+  - `benchmark/flyki_overlap/CBOCC.cpp`
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLine.cpp`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLine.h`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLineTests.cpp`
+  - `docs/cbocco_explicit_grouping.md`
+  - `PROGRESS.md`
+- 当前入口兼容性：
+  - Existing accepted form before this phase: `cbocco <func> <method> <seed> <maxfes>`
+  - Backward-compatible legacy form still works: `cbocco 1 CBCCO 1 1000`
+  - New explicit form: `cbocco 1 CBCCO 1 1000 --grouping-source explicit_files --po <predicted_groups.txt> --oo <predicted_overlap.txt>`
+  - Optional explicit legacy form: `cbocco 1 CBCCO 1 1000 --grouping-source legacy_by_function`
+- 配置命令：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; & $env:USERPROFILE\scoop\shims\cmake.exe -S benchmark/flyki_overlap -B build/flyki_phase7a -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\gcc.exe" -DCMAKE_CXX_COMPILER="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\g++.exe" -DCMAKE_MAKE_PROGRAM="$env:USERPROFILE\scoop\shims\ninja.exe" -DCMAES_ROOT=third_party/cmaes`
+- TDD red command:
+  - `cmake --build build/flyki_phase7a --target cbocco_argument_tests --config Release`
+  - Expected failure observed before implementation: missing `grouping/CBOCCCommandLine.h`
+- 构建命令：
+  - `cmake --build build/flyki_phase7a --target flyki_core --config Release`
+  - `cmake --build build/flyki_phase7a --target cbocco_argument_tests --config Release`
+  - `.\build\flyki_phase7a\cbocco_argument_tests.exe`
+  - `cmake --build build/flyki_phase7a --target cbocco --config Release`
+  - `cmake --build build/flyki_phase7a --target cwvig_grouping_pipeline_cli --config Release`
+  - `cmake --build build/flyki_phase7a --target cwvig_grouping_pipeline_tests --config Release`
+  - `cmake --build build/flyki_phase7a --target grouping_source_cli --config Release`
+  - `cmake --build build/flyki_phase7a --target grouping_source_tests --config Release`
+  - `cmake --build build/flyki_phase7a --target cmaes_dependency_check --config Release`
+- 构建输出：
+  - `flyki_core` built successfully: `E:\CWVIG_OSD\build\flyki_phase7a\libflyki_core.a`
+  - `cbocco_argument_tests.exe` built and printed `CBOCCCommandLineTests passed`.
+  - `cbocco.exe` built successfully: `E:\CWVIG_OSD\build\flyki_phase7a\cbocco.exe`
+  - `cwvig_grouping_pipeline_cli.exe` built successfully: `E:\CWVIG_OSD\build\flyki_phase7a\cwvig_grouping_pipeline_cli.exe`
+  - `cwvig_grouping_pipeline_tests.exe` built and printed `CWVIGGroupingPipelineTests passed`.
+  - `grouping_source_cli.exe` built successfully: `E:\CWVIG_OSD\build\flyki_phase7a\grouping_source_cli.exe`
+  - `grouping_source_tests.exe` built and printed `GroupingSourceTests passed`.
+  - `cmaes_dependency_check` built successfully.
+- predicted grouping 命令：
+  - `.\build\flyki_phase7a\cwvig_grouping_pipeline_cli.exe --config configs\cwvig_presets\capped_default.json --mode flyki --func 1 --dimension-limit 10 --seed 1 --contexts 3 --output-dir results\phase7a_predicted_f1_10d --print-summary`
+- predicted grouping 输出：
+  - `case=flyki:1`
+  - `dimension_limit=10`
+  - `contexts=3`
+  - `function_evaluations=540`
+  - `groups=9`
+  - `shared_variables=5`
+  - `validation_errors=0`
+  - Files under `E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\`: `edges.csv`, `pipeline_config.txt`, `pipeline_summary.txt`, `predicted_groups.txt`, `predicted_overlap.txt`, `z.csv`
+- predicted po/oo validation command:
+  - `.\build\flyki_phase7a\grouping_source_cli.exe --source explicit_files --po results\phase7a_predicted_f1_10d\predicted_groups.txt --oo results\phase7a_predicted_f1_10d\predicted_overlap.txt --print-summary`
+- predicted po/oo validation output:
+  - `Number Of Groups: 9`
+  - `Dimension: 10`
+  - `Unique Variables: 10`
+  - `Shared Variables: 5`
+  - `Sharedvar Group Pos Entries: 5`
+  - `Validation Errors: 0`
+- legacy smoke 命令：
+  - From `E:\CWVIG_OSD\benchmark\flyki_overlap`: `& ..\..\build\flyki_phase7a\cbocco.exe 1 CBCCO 1 1000`
+- legacy startup log:
+  - `Grouping Source: legacy_by_function`
+  - `Po Path: .\1po.txt`
+  - `Oo Path: .\1oo.txt`
+  - `Number Of Groups: 20`
+  - `Dimension: 905`
+  - `Shared Variables: 95`
+  - `Validation Errors: 0`
+- legacy smoke 结果文件：
+  - `E:\CWVIG_OSD\results\phase7a_cbocco_legacy\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7a_cbocco_legacy\CBCCOtimefile.txt`
+  - Last result row: `162000,1.46102e+11`
+  - `CBCCOtimefile.txt`: `1,169`
+- explicit predicted smoke 命令：
+  - From `E:\CWVIG_OSD\benchmark\flyki_overlap`: `& ..\..\build\flyki_phase7a\cbocco.exe 1 CBCCO 1 1000 --grouping-source explicit_files --po E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\predicted_groups.txt --oo E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\predicted_overlap.txt`
+- explicit predicted startup log:
+  - `Grouping Source: explicit_files`
+  - `Po Path: E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\predicted_groups.txt`
+  - `Oo Path: E:\CWVIG_OSD\results\phase7a_predicted_f1_10d\predicted_overlap.txt`
+  - `Number Of Groups: 9`
+  - `Dimension: 10`
+  - `Shared Variables: 5`
+  - `Validation Errors: 0`
+- explicit predicted smoke 结果文件：
+  - `E:\CWVIG_OSD\results\phase7a_cbocco_predicted\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7a_cbocco_predicted\CBCCOtimefile.txt`
+  - `E:\CWVIG_OSD\results\phase7a_cbocco_predicted\errcmaes.err`
+  - Last result row: `2600,5.99031e+16`
+  - `CBCCOtimefile.txt`: `1,1`
+- FE/maxfes 观察：
+  - `maxfes=1000` is still not a strict final logged FE cap in original `CBOG_CBD`, because `testStage()` runs before `optimizationStage()` checks `usedFEs < MAXFES`.
+  - Phase 7A legacy smoke reached `162000` FEs.
+  - Phase 7A explicit predicted 10D smoke reached `2600` FEs.
+- 关键观察：
+  - `CBOCC.cpp` now selects only the grouping source; both modes pass `groups`, `overiables`, `overiablesRedandunt`, and `sharedvar_group_pos` unchanged into `CBOG_CBD`.
+  - Startup logging prints function id, method, seed, maxfes argument, grouping source, po path, oo path, group count, inferred grouping dimension, shared-variable count, and validation error count.
+  - The first legacy smoke attempt used a 120s timeout and was too short for this run; rerunning without `Tee-Object` and with a 240s timeout completed successfully.
+  - The explicit predicted smoke produced CMA-ES equal-function-values warnings in `errcmaes.err`; the warning file was archived with predicted smoke outputs.
+  - No SharedVariablePolicy, CBOG_CBD optimization logic, CMAESO algorithm logic, CBOCC optimization method behavior, or benchmark function logic was changed.
+- 遗留风险：
+  - Explicit predicted `dimension_limit=10` is a smoke path only and does not claim full 905D CWVIG quality.
+  - Original `CBOG_CBD` hard-overlap logic assumes its existing overlap handling; Phase 7A intentionally does not calibrate soft shared-variable updates.
+  - `results/*` is ignored by git, so Phase 7A artifacts are local verification outputs rather than committed research data.
+- 推荐下一目标：
+  - Add a named CWVIG_OSD method branch or adapter that can run explicit predicted grouping as a separate experimental condition while still preserving `CBCCO` as the untouched baseline.
