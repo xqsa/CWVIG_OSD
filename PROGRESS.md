@@ -1587,3 +1587,64 @@
   - Larger command `maxfes` values may eventually enter `optimizationStage()` and should be audited separately before multi-seed claims.
 - 推荐下一目标：
   - Define a fair-comparison protocol that either matches final FE explicitly or reports FE-normalized curves before adding any new CWVIG_OSD shared-variable update policy.
+
+## 2026-06-30 - Phase 7E Multi-Seed CBCCO Smoke Comparison
+
+- 状态：partial-success smoke; script completed and documented seed 3 completed-predicted failure without changing `CBOG_CBD`, `CMAESO`, benchmark functions, or legacy CBCCO behavior.
+- 修改文件：
+  - `experiments/analyze_cbocco_multiseed.py`
+  - `scripts/run_cbocco_multiseed_smoke_compare.ps1`
+  - `tests/test_analyze_cbocco_multiseed.py`
+  - `docs/cbocco_multiseed_smoke_comparison.md`
+  - `PROGRESS.md`
+- TDD red command：
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_analyze_cbocco_multiseed.py`
+  - Expected failure observed before implementation: `ModuleNotFoundError: No module named 'experiments.analyze_cbocco_multiseed'`.
+- 构建与运行命令：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; .\scripts\run_cbocco_multiseed_smoke_compare.ps1 -CMakeExe "$env:USERPROFILE\scoop\shims\cmake.exe" -PythonExe "C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"`
+  - The script configured and built `build/flyki_phase7e` targets `cbocco`, `cwvig_grouping_pipeline_cli`, `grouping_coverage_cli`, and `grouping_source_cli`.
+  - It ran seeds `1, 3, 5`, generated capped 10D CWVIG groupings, singleton-completed them to 905D, validated explicit loader output, and ran legacy/completed-predicted CBCCO smoke checks.
+- Phase 7E result files：
+  - `E:\CWVIG_OSD\results\phase7e\multiseed_comparison.csv`
+  - `E:\CWVIG_OSD\results\phase7e\multiseed_summary.csv`
+  - `E:\CWVIG_OSD\results\phase7e\phase7e_report.md`
+  - `E:\CWVIG_OSD\results\phase7e\seed_1\legacy\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7e\seed_1\completed_predicted\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7e\seed_3\legacy\1.3.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7e\seed_3\completed_predicted\cbocco_stdout.txt`
+  - `E:\CWVIG_OSD\results\phase7e\seed_3\completed_predicted\exit_code.txt`
+  - `E:\CWVIG_OSD\results\phase7e\seed_5\legacy\1.5.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7e\seed_5\completed_predicted\1.5.100.CBOG-CBD.result.txt`
+- comparison.csv observations：
+  - seed `1`: legacy final FE `162000`, completed-predicted final FE `181600`, common FE `162000`, final/common winner `completed_predicted`, FE matched `false`.
+  - seed `3`: legacy final FE `162000`; completed-predicted produced no result file and is marked `unavailable`.
+  - seed `5`: legacy final FE `162000`, completed-predicted final FE `181800`, common FE `162000`, final/common winner `completed_predicted`, FE matched `false`.
+- summary.csv observations：
+  - legacy: `seeds=3`, `mean_final_fitness=142812100000.0`, `mean_common_fe_fitness=130833150000.0`, `mean_final_fe=162000.0`, wins `0`.
+  - completed-predicted: `seeds=2`, `mean_final_fitness=13283750000.0`, `mean_common_fe_fitness=13788250000.0`, `mean_final_fe=181700.0`, wins `2`.
+  - mean relative final-FE difference over comparable pairs: `0.12160493827160493`.
+- seed 3 failure detail：
+  - `E:\CWVIG_OSD\results\phase7e\seed_3\completed_predicted\cbocco_stdout.txt` reports `cmaes_readpara_ReadFromFile(): No valid dimension N`.
+  - The completed grouping passes full-coverage validation, but an inspection of the original hard-overlap removal effect showed `shared=[0, 1, 2, 4, 5]` and three groups become zero-dimensional after shared variables are removed: `(3, [0, 2, 4, 5])`, `(5, [1, 2, 4, 5])`, `(6, [0, 2, 4, 5])`.
+  - The script records this as a failed/unavailable pair instead of changing optimizer behavior or silently mutating the grouping.
+- analyzer behavior：
+  - `experiments/analyze_cbocco_multiseed.py` parses no-header `FE,fitness` curves.
+  - It computes per-seed final FE/fitness, common FE, fitness at common FE using the last logged row with `FE <= common_fe`, FE difference, relative FE difference, FE matched flag, and final/common winners.
+  - It writes `multiseed_comparison.csv`, `multiseed_summary.csv`, and `phase7e_report.md`.
+- 后续验证命令：
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_analyze_cbocco_multiseed.py` -> `4 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_analyze_cbocco_multiseed.py tests\test_parse_cbocco_results.py tests\test_audit_cbocco_budget.py` -> `10 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q` -> `12 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\grouping_accuracy.py` -> printed grouping JSON with `evaluations=192`, `shared_variables=[1]`, and no error.
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; cmake --build build\flyki_phase7e --target cbocco --config Release` -> `ninja: no work to do.`
+  - `git diff -- benchmark\flyki_overlap\CBOG_CBD.cpp benchmark\flyki_overlap\CMAESO.cpp benchmark\flyki_overlap\F1.cpp benchmark\flyki_overlap\Benchmarks.cpp benchmark\flyki_overlap\CBOCC.cpp` -> no diff.
+  - `git diff --check` -> no whitespace errors.
+- 关键限制：
+  - Phase 7E is not a final performance benchmark.
+  - Completed-predicted uses 10D CWVIG plus singleton completion, not a final CWVIG-OSD method.
+  - Original hard-overlap `CBOG_CBD` behavior is unchanged.
+  - Final-FE comparisons are not FE-matched.
+  - Common-FE comparisons are conservative smoke evidence, not a superiority claim.
+  - Seed 3 completed-predicted failed before producing a result file.
+- 推荐下一目标：
+  - Define a fair, matched-FE protocol and a grouping sanitization or explicit policy for groups that become zero-dimensional after original shared-variable removal, before introducing any shared-variable-aware update logic.
