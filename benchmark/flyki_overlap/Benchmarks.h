@@ -10,6 +10,7 @@
 #include <iostream>
 #include <cmath>
 #include <ctime>
+#include <cstdint>
 #include <set>
 using namespace std;
 

@@ -1,5 +1,7 @@
 #include "CBOG_CBD.h"
 
+#include <algorithm>
+
 CBOG_CBD::CBOG_CBD(Benchmarks* fp, int DIM, int seed, int testRound, vector<vector<int>> groups, vector<vector<int>> overiables, vector<vector<int>> overiablesRedundant, map<int, vector<pair<int, int>>> share_group_pos, long int MAXFES) {
 	starttime = clock();
 	this->groups = groups;

@@ -2,22 +2,29 @@
 
 - Date: 2026-06-30
 - Executor: Codex
-- Scope: Phase 6A dependency recovery only; no optimizer behavior change.
+- Scope: Phase 6C dependency recovery; no optimizer behavior change.
 
 ## Why External
 
-The original Flyki overlapping-optimization code wraps an external CMA-ES implementation through `CMAESO.h` and `CMAESO.cpp`. The repository does not currently contain the required CMA-ES headers or implementation sources, so `cbocco` cannot be built until the dependency is provided.
+The original Flyki overlapping-optimization code wraps an external CMA-ES implementation through `CMAESO.h` and `CMAESO.cpp`. `cbocco` needs the matching C API headers and implementation sources.
 
 Do not stub, rewrite, or silently replace CMA-ES. The missing dependency must be supplied explicitly.
 
-## Repository Search Result
+## Bundled Dependency
 
-Only wrapper files are present:
+The project now vendors the minimal compatible upstream `c-cmaes` files under `third_party/cmaes`.
 
-- `benchmark/flyki_overlap/CMAESO.h`
-- `benchmark/flyki_overlap/CMAESO.cpp`
+- Upstream: https://github.com/CMA-ES/c-cmaes
+- Source revision checked when added: `4450d3deccf2aacb6aa955d8216cfc4461699c60`
+- License: see `third_party/cmaes/LICENSE`; upstream allows Apache License 2.0 or LGPL 2.1 or later.
 
-No bundled `cmaes_interface.h`, `boundary_transformation.h`, or CMA-ES implementation source file is present in the repository.
+Vendored files:
+
+- `third_party/cmaes/include/cmaes_interface.h`
+- `third_party/cmaes/include/cmaes.h`
+- `third_party/cmaes/include/boundary_transformation.h`
+- `third_party/cmaes/src/cmaes.c`
+- `third_party/cmaes/src/boundary_transformation.c`
 
 ## Required Headers
 
@@ -64,12 +71,14 @@ Preferred local layout:
 
 ```text
 third_party/cmaes/
+├── LICENSE
 ├── include/
 │   ├── cmaes_interface.h
+│   ├── cmaes.h
 │   └── boundary_transformation.h
 └── src/
-    ├── cmaes.c or cmaes.cpp or cmaes_interface.c or cmaes_interface.cpp
-    └── boundary_transformation.c or boundary_transformation.cpp
+    ├── cmaes.c
+    └── boundary_transformation.c
 ```
 
 The default `CMAES_ROOT` points at `third_party/cmaes`.
@@ -136,35 +145,30 @@ These targets must remain buildable without CMA-ES:
 
 ## Current Status
 
-As of Phase 6B verification on 2026-06-30, no compatible CMA-ES dependency is present locally. The actual local layout is:
-
-```text
-third_party/cmaes/
-└── README.md
-```
-
-Missing files:
-
-- `third_party/cmaes/include/cmaes_interface.h`
-- `third_party/cmaes/include/boundary_transformation.h`
-- one compatible CMA-ES implementation source under `third_party/cmaes/src/`
-- one compatible boundary transformation implementation source under `third_party/cmaes/src/`
-
-Verified independent targets still build without CMA-ES:
+As of Phase 6C verification on 2026-06-30, the compatible CMA-ES dependency is present locally and `cbocco` builds with GCC + Ninja.
 
 ```powershell
-cmake -S benchmark/flyki_overlap -B build/flyki_phase6b -DCMAKE_BUILD_TYPE=Release -DCMAES_ROOT=third_party/cmaes
-cmake --build build/flyki_phase6b --target flyki_core --config Release
-cmake --build build/flyki_phase6b --target cwvig_grouping_pipeline_cli --config Release
-cmake --build build/flyki_phase6b --target cwvig_grouping_pipeline_tests --config Release
-.\build\flyki_phase6b\Release\cwvig_grouping_pipeline_tests.exe
+$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"
+& $env:USERPROFILE\scoop\shims\cmake.exe -S benchmark/flyki_overlap -B build/flyki_phase6c -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\gcc.exe" -DCMAKE_CXX_COMPILER="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\g++.exe" -DCMAKE_MAKE_PROGRAM="$env:USERPROFILE\scoop\shims\ninja.exe" -DCMAES_ROOT=third_party/cmaes
+& $env:USERPROFILE\scoop\shims\cmake.exe --build build/flyki_phase6c --target flyki_core --config Release
+& $env:USERPROFILE\scoop\shims\cmake.exe --build build/flyki_phase6c --target cwvig_grouping_pipeline_cli --config Release
+& $env:USERPROFILE\scoop\shims\cmake.exe --build build/flyki_phase6c --target cwvig_grouping_pipeline_tests --config Release
+& build\flyki_phase6c\cwvig_grouping_pipeline_tests.exe
+& $env:USERPROFILE\scoop\shims\cmake.exe --build build/flyki_phase6c --target cmaes_dependency_check --config Release
+& $env:USERPROFILE\scoop\shims\cmake.exe --build build/flyki_phase6c --target cbocco --config Release
 ```
 
-Current blocker:
+Smoke command:
 
 ```powershell
-cmake --build build/flyki_phase6b --target cmaes_dependency_check --config Release
-cmake --build build/flyki_phase6b --target cbocco --config Release
+& ..\..\build\flyki_phase6c\cbocco.exe 1 CBCCO 1 1000
 ```
 
-Both commands fail with the documented missing-dependency diagnostic until the external files are supplied. The build path is prepared and documented, but `cbocco` remains unavailable.
+Run from `benchmark/flyki_overlap`.
+
+Smoke artifacts were archived locally:
+
+- `results/phase6c_cbocco_smoke/1.1.100.CBOG-CBD.result.txt`
+- `results/phase6c_cbocco_smoke/CBCCOtimefile.txt`
+
+The smoke reached the original CBCCO flow and produced the legacy result file. No SharedVariablePolicy, CBOG_CBD optimization logic, CBOCC optimization behavior, CMAESO algorithm logic, or benchmark function logic was changed.

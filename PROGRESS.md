@@ -1169,3 +1169,58 @@
   - Phase 6B cannot be completed until the external CMA-ES files are actually present under `third_party/cmaes/include` and `third_party/cmaes/src`, or a valid external path is passed through `-DCMAES_ROOT`.
 - 推荐下一目标：
   - Place the compatible CMA-ES files in `third_party/cmaes/include` and `third_party/cmaes/src`, then rerun Phase 6B build verification.
+
+## 2026-06-30 - Phase 6C Vendored c-cmaes And Restored cbocco Build
+
+- 状态：done locally; compatible open-source CMA-ES dependency added, `cmaes_dependency_check` and `cbocco` build, legacy CBCCO smoke run completed
+- 修改文件：
+  - `third_party/cmaes/README.md`
+  - `third_party/cmaes/LICENSE`
+  - `third_party/cmaes/include/cmaes_interface.h`
+  - `third_party/cmaes/include/cmaes.h`
+  - `third_party/cmaes/include/boundary_transformation.h`
+  - `third_party/cmaes/src/cmaes.c`
+  - `third_party/cmaes/src/boundary_transformation.c`
+  - `benchmark/flyki_overlap/Benchmarks.h`
+  - `benchmark/flyki_overlap/CBOG_CBD.cpp`
+  - `docs/cmaes_dependency.md`
+  - `PROGRESS.md`
+- 依赖来源：
+  - Upstream: `https://github.com/CMA-ES/c-cmaes`
+  - Checked upstream HEAD: `4450d3deccf2aacb6aa955d8216cfc4461699c60`
+  - License file preserved at `third_party/cmaes/LICENSE`; upstream offers Apache License 2.0 or LGPL 2.1 or later.
+- 环境命令：
+  - `& $env:USERPROFILE\scoop\shims\scoop.cmd install ninja`
+  - `& $env:USERPROFILE\scoop\shims\cmake.exe --version` -> `cmake version 4.3.4`
+  - `& $env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\g++.exe --version` -> `g++.exe (GCC) 15.2.0`
+- 配置命令：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; & $env:USERPROFILE\scoop\shims\cmake.exe -S benchmark/flyki_overlap -B build/flyki_phase6c -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\gcc.exe" -DCMAKE_CXX_COMPILER="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin\g++.exe" -DCMAKE_MAKE_PROGRAM="$env:USERPROFILE\scoop\shims\ninja.exe" -DCMAES_ROOT=third_party/cmaes`
+- 构建命令：
+  - `cmake --build build/flyki_phase6c --target flyki_core --config Release`
+  - `cmake --build build/flyki_phase6c --target cwvig_grouping_pipeline_cli --config Release`
+  - `cmake --build build/flyki_phase6c --target cwvig_grouping_pipeline_tests --config Release`
+  - `.\build\flyki_phase6c\cwvig_grouping_pipeline_tests.exe`
+  - `cmake --build build/flyki_phase6c --target cmaes_dependency_check --config Release`
+  - `cmake --build build/flyki_phase6c --target cbocco --config Release`
+- 构建输出：
+  - `flyki_core` built successfully: `E:\CWVIG_OSD\build\flyki_phase6c\libflyki_core.a`
+  - `cwvig_grouping_pipeline_cli.exe` built successfully: `E:\CWVIG_OSD\build\flyki_phase6c\cwvig_grouping_pipeline_cli.exe`
+  - `cwvig_grouping_pipeline_tests.exe` built successfully and printed `CWVIGGroupingPipelineTests passed`.
+  - `cmaes_dependency_check` built successfully.
+  - `cbocco.exe` built successfully: `E:\CWVIG_OSD\build\flyki_phase6c\cbocco.exe`
+- smoke 命令：
+  - From `E:\CWVIG_OSD\benchmark\flyki_overlap`: `& ..\..\build\flyki_phase6c\cbocco.exe 1 CBCCO 1 1000`
+- smoke 结果文件：
+  - `E:\CWVIG_OSD\results\phase6c_cbocco_smoke\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase6c_cbocco_smoke\CBCCOtimefile.txt`
+  - The smoke result last line was `162000,1.14014e+11`; `CBCCOtimefile.txt` contained `1,91`.
+- 关键观察：
+  - `third_party/cmaes` now contains the exact C API expected by `CMAESO.h`: `cmaes_interface.h`, `cmaes.h`, `boundary_transformation.h`, `cmaes.c`, and `boundary_transformation.c`.
+  - Two minimal GCC portability fixes were required: add `<cstdint>` for `int64_t` in `Benchmarks.h`, and add `<algorithm>` for `sort` in `CBOG_CBD.cpp`.
+  - The first `flyki_core` build failure was missing `<cstdint>`; after adding the include, `flyki_core` built.
+  - The first `cbocco` build failure was missing `<algorithm>`; after adding the include, `cbocco` linked.
+  - No SharedVariablePolicy, CBOG_CBD optimization logic, CBOCC optimization behavior, CMAESO algorithm logic, or benchmark function logic was changed.
+- 遗留风险：
+  - GCC/Ninja path is explicit in the verified commands because the current shell did not initially include Scoop shims in PATH.
+  - The smoke run is the original CBCCO path only; CWVIG-OSD shared-variable-aware optimization is still a later phase.
+  - `results/*` is ignored by git, so smoke artifacts are local verification outputs rather than committed research results.
