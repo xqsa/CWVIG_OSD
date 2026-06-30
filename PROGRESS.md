@@ -1788,3 +1788,68 @@
   - No final optimization superiority claim is made.
 - 推荐下一目标：
   - Add a matched-FE or FE-normalized evaluation protocol for sanitized hard-overlap-compatible grouping before implementing the real shared-variable-aware CC update.
+
+## 2026-06-30 - Phase 7H CWVIG Coverage-Scaling Smoke
+
+- 状态：done locally; ran coverage-scaling smoke for seeds `1,3` and `dimension_limit=10,20,50`. No `SharedVariablePolicy`, `CBOG_CBD`, `CMAESO`, benchmark function, or legacy CBCCO behavior change.
+- 修改文件：
+  - `experiments/analyze_cbocco_coverage_scaling.py`
+  - `tests/test_analyze_cbocco_coverage_scaling.py`
+  - `scripts/run_cbocco_coverage_scaling_smoke.ps1`
+  - `docs/cbocco_coverage_scaling_smoke.md`
+  - `PROGRESS.md`
+- TDD red command：
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_analyze_cbocco_coverage_scaling.py`
+  - Expected failure observed before implementation: `ModuleNotFoundError: No module named 'experiments.analyze_cbocco_coverage_scaling'`.
+- Analyzer changes：
+  - Added `experiments/analyze_cbocco_coverage_scaling.py`.
+  - It parses predicted/complete group counts, coverage ratio, completion added variables/ratio, sanitizer before/after fields, loader validation errors, strict CBCCO exit code, result file presence, final FE/fitness, and common-FE metrics against one legacy result per seed.
+  - It writes `coverage_scaling_summary.csv`, `by_dimension_summary.csv`, `by_seed_summary.csv`, and `phase7h_report.md`.
+- Phase 7H run command：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; .\scripts\run_cbocco_coverage_scaling_smoke.ps1 -CMakeExe "$env:USERPROFILE\scoop\shims\cmake.exe" -PythonExe "C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"`
+  - The script configured `build/flyki_phase7h`, built `cbocco`, `cwvig_grouping_pipeline_cli`, `grouping_coverage_cli`, `grouping_source_cli`, `hard_overlap_audit_cli`, and `hard_overlap_sanitize_cli`.
+  - It ran strict legacy CBCCO once per seed and strict sanitized completed-predicted CBCCO for each seed/dimension limit pair.
+  - Runtime was about 17 minutes, so `dimension_limit=100` was left as an optional script parameter rather than included in the default smoke.
+- Phase 7H result files：
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\coverage_scaling_summary.csv`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\by_dimension_summary.csv`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\by_seed_summary.csv`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\phase7h_report.md`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\seed_1\legacy\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\seed_3\legacy\1.3.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\seed_1\dim_10\sanitized_cbocco\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\seed_1\dim_20\sanitized_cbocco\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\seed_1\dim_50\sanitized_cbocco\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\seed_3\dim_10\sanitized_cbocco\1.3.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\seed_3\dim_20\sanitized_cbocco\1.3.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7h_coverage_scaling\seed_3\dim_50\sanitized_cbocco\1.3.100.CBOG-CBD.result.txt`
+- Coverage/completion observations：
+  - dim `10`: coverage ratio `0.011049723756906077`, mean completion added ratio `0.988950276243094`, successful results `2/2`.
+  - dim `20`: coverage ratio `0.022099447513812154`, mean completion added ratio `0.9779005524861878`, successful results `2/2`.
+  - dim `50`: coverage ratio `0.055248618784530384`, mean completion added ratio `0.9447513812154696`, successful results `2/2`.
+- Sanitizer observations：
+  - All six sanitized runs had `zero_effective_groups_after=0`, `loader_validation_errors=0`, `hard_overlap_compatible_after=true`, `cbocco_exit_code=0`, and `result_file_exists=true`.
+  - Mean zero-effective groups before repair: dim `10` -> `1.5`, dim `20` -> `4.5`, dim `50` -> `17.0`.
+  - Mean repair actions: dim `10` -> `1.0`, dim `20` -> `3.0`, dim `50` -> `5.0`.
+- FE observations：
+  - seed `1`, dim `10`: final FE `181600`, final fitness `18989100000.0`, relative FE diff `0.12098765432098765`.
+  - seed `1`, dim `20`: final FE `183600`, final fitness `12619800000.0`, relative FE diff `0.13333333333333333`.
+  - seed `1`, dim `50`: final FE `181000`, final fitness `13252900000.0`, relative FE diff `0.11728395061728394`.
+  - seed `3`, dim `10`: final FE `182200`, final fitness `15711500000.0`, relative FE diff `0.12469135802469136`.
+  - seed `3`, dim `20`: final FE `182800`, final fitness `15855500000.0`, relative FE diff `0.12839506172839507`.
+  - seed `3`, dim `50`: final FE `180600`, final fitness `15448200000.0`, relative FE diff `0.11481481481481481`.
+- 后续验证命令：
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_analyze_cbocco_coverage_scaling.py tests\test_analyze_cbocco_multiseed.py tests\test_parse_cbocco_results.py tests\test_audit_cbocco_budget.py` -> `17 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q` -> `19 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\grouping_accuracy.py` -> printed grouping JSON with `evaluations=192`, `shared_variables=[1]`, and no error.
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; cmake --build build\flyki_phase7h --target cbocco --config Release; cmake --build build\flyki_phase7h --target cwvig_grouping_pipeline_cli --config Release; cmake --build build\flyki_phase7h --target grouping_coverage_cli --config Release; cmake --build build\flyki_phase7h --target grouping_source_cli --config Release; cmake --build build\flyki_phase7h --target hard_overlap_audit_cli --config Release; cmake --build build\flyki_phase7h --target hard_overlap_sanitize_cli --config Release` -> all reported `ninja: no work to do.`
+  - `git diff -- benchmark\flyki_overlap\CBOG_CBD.cpp benchmark\flyki_overlap\CMAESO.cpp benchmark\flyki_overlap\F1.cpp benchmark\flyki_overlap\Benchmarks.cpp benchmark\flyki_overlap\CBOCC.cpp benchmark\flyki_overlap\CMakeLists.txt` -> no diff.
+  - `git diff --check` -> no whitespace errors.
+- 关键限制：
+  - Phase 7H remains a smoke/integration scaling study.
+  - Larger `dimension_limit` reduces singleton completion but increases CWVIG probing cost.
+  - Final FE still differs from legacy, so common-FE analysis should be preferred.
+  - No final optimization superiority claim is made.
+  - Full 905D CWVIG probing is still avoided by default.
+- 推荐下一目标：
+  - Add matched-FE or FE-normalized evaluation before interpreting optimization performance, then design the real shared-variable-aware CC update separately.
