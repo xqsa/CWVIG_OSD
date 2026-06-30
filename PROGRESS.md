@@ -1729,3 +1729,62 @@
   - Repaired seed 3 smoke is not an optimization improvement claim and is not FE-matched with previous Phase 7E comparisons.
 - 推荐下一目标：
   - Add matched-FE or FE-normalized comparison scripts that use hard-overlap-compatible groupings, then separately design the real shared-variable-aware update policy.
+
+## 2026-06-30 - Phase 7G Sanitized Multi-Seed CBCCO Smoke Comparison
+
+- 状态：done locally; reran seeds `1,3,5` with explicit hard-overlap sanitizer before completed-predicted CBCCO runs. No `SharedVariablePolicy`, `CBOG_CBD`, `CMAESO`, benchmark function, or legacy CBCCO behavior change.
+- 修改文件：
+  - `experiments/analyze_cbocco_multiseed.py`
+  - `tests/test_analyze_cbocco_multiseed.py`
+  - `scripts/run_cbocco_multiseed_sanitized_compare.ps1`
+  - `docs/cbocco_sanitized_multiseed_comparison.md`
+  - `PROGRESS.md`
+- TDD red command：
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_analyze_cbocco_multiseed.py`
+  - Expected failure observed before implementation: `ImportError: cannot import name 'parse_sanitizer_metadata'`.
+- Analyzer changes：
+  - Default Phase 7E behavior remains `completed_predicted`.
+  - Added configurable candidate source/prefix for `sanitized_completed_predicted`.
+  - Added sanitizer metadata parsing from `audit/sanitize_summary.txt`, `audit/sanitizer_report.csv`, `grouping/sanitized_loader_summary.txt`, and CBCCO stdout.
+  - Added CSV fields: `shared_before_sanitize`, `shared_after_sanitize`, `zero_effective_groups_before`, `zero_effective_groups_after`, `repair_policy`, `repaired_variables_or_groups_count`, `loader_validation_errors`, `hard_overlap_compatible_after`, `legacy_hard_overlap_compatible`, `sanitized_hard_overlap_compatible`, `both_result_files_present`, `both_hard_overlap_compatible`.
+- Phase 7G run command：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; .\scripts\run_cbocco_multiseed_sanitized_compare.ps1 -CMakeExe "$env:USERPROFILE\scoop\shims\cmake.exe" -PythonExe "C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"`
+  - The script configured `build/flyki_phase7g`, built `cbocco`, `cwvig_grouping_pipeline_cli`, `grouping_coverage_cli`, `grouping_source_cli`, `hard_overlap_audit_cli`, and `hard_overlap_sanitize_cli`.
+  - For each seed, it generated capped 10D CWVIG grouping, singleton-completed to 905D, audited hard-overlap compatibility, sanitized with `demote_min_shared`, validated sanitized `po/oo`, audited after repair, and ran strict legacy and strict sanitized completed-predicted CBCCO.
+- Phase 7G result files：
+  - `E:\CWVIG_OSD\results\phase7g\sanitized_multiseed_comparison.csv`
+  - `E:\CWVIG_OSD\results\phase7g\sanitized_multiseed_summary.csv`
+  - `E:\CWVIG_OSD\results\phase7g\phase7g_report.md`
+  - `E:\CWVIG_OSD\results\phase7g\seed_1\legacy\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7g\seed_1\sanitized_completed_predicted\1.1.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7g\seed_3\legacy\1.3.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7g\seed_3\sanitized_completed_predicted\1.3.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7g\seed_5\legacy\1.5.100.CBOG-CBD.result.txt`
+  - `E:\CWVIG_OSD\results\phase7g\seed_5\sanitized_completed_predicted\1.5.100.CBOG-CBD.result.txt`
+- Sanitizer observations：
+  - seed `1`: shared `5 -> 5`, zero-effective `0 -> 0`, repair actions `0`, loader validation errors `0`, hard-overlap compatible after repair `true`.
+  - seed `3`: shared `5 -> 3`, zero-effective `3 -> 0`, repair actions `2`, loader validation errors `0`, hard-overlap compatible after repair `true`.
+  - seed `5`: shared `5 -> 5`, zero-effective `0 -> 0`, repair actions `0`, loader validation errors `0`, hard-overlap compatible after repair `true`.
+  - All rows have `both_result_files_present=true` and `both_hard_overlap_compatible=true`.
+- FE observations：
+  - seed `1`: legacy final FE `162000`, sanitized final FE `181600`, common FE `162000`, final/common winner `sanitized_completed_predicted`.
+  - seed `3`: legacy final FE `162000`, sanitized final FE `182200`, common FE `162000`, final/common winner `sanitized_completed_predicted`.
+  - seed `5`: legacy final FE `162000`, sanitized final FE `181800`, common FE `162000`, final/common winner `sanitized_completed_predicted`.
+  - Summary: legacy mean final fitness `111101733333.33333`, sanitized mean final fitness `16879933333.333334`, legacy mean common-FE fitness `111101733333.33333`, sanitized mean common-FE fitness `17400366666.666668`.
+  - Mean relative final-FE difference: `0.12263374485596708`; the comparison is not FE-matched.
+- 后续验证命令：
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q tests\test_analyze_cbocco_multiseed.py tests\test_parse_cbocco_results.py tests\test_audit_cbocco_budget.py` -> `13 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q` -> `15 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\grouping_accuracy.py` -> printed grouping JSON with `evaluations=192`, `shared_variables=[1]`, and no error.
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; cmake --build build\flyki_phase7g --target cbocco --config Release; cmake --build build\flyki_phase7g --target cwvig_grouping_pipeline_cli --config Release; cmake --build build\flyki_phase7g --target grouping_coverage_cli --config Release; cmake --build build\flyki_phase7g --target grouping_source_cli --config Release; cmake --build build\flyki_phase7g --target hard_overlap_audit_cli --config Release; cmake --build build\flyki_phase7g --target hard_overlap_sanitize_cli --config Release` -> all reported `ninja: no work to do.`
+  - `git diff -- benchmark\flyki_overlap\CBOG_CBD.cpp benchmark\flyki_overlap\CMAESO.cpp benchmark\flyki_overlap\F1.cpp benchmark\flyki_overlap\Benchmarks.cpp benchmark\flyki_overlap\CBOCC.cpp benchmark\flyki_overlap\CMakeLists.txt` -> no diff.
+  - `git diff --check` -> no whitespace errors.
+- 关键限制：
+  - Phase 7G remains a smoke/integration comparison.
+  - Sanitized completed-predicted uses 10D CWVIG plus singleton completion plus `demote_min_shared` repair.
+  - The sanitizer changes predicted overlap membership to avoid zero-dimensional CMA-ES groups.
+  - Original hard-overlap `CBOG_CBD` behavior is unchanged.
+  - Final-FE comparisons are not FE-matched; common-FE rows are conservative but still not final performance evidence.
+  - No final optimization superiority claim is made.
+- 推荐下一目标：
+  - Add a matched-FE or FE-normalized evaluation protocol for sanitized hard-overlap-compatible grouping before implementing the real shared-variable-aware CC update.

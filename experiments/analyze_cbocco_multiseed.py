@@ -14,10 +14,43 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-COMPARISON_COLUMNS = [
+DEFAULT_CANDIDATE_NAME = "completed_predicted"
+DEFAULT_CANDIDATE_PREFIX = "completed_predicted"
+
+SANITIZER_COLUMNS = [
+    "shared_before_sanitize",
+    "shared_after_sanitize",
+    "zero_effective_groups_before",
+    "zero_effective_groups_after",
+    "repair_policy",
+    "repaired_variables_or_groups_count",
+    "loader_validation_errors",
+    "hard_overlap_compatible_after",
+    "legacy_hard_overlap_compatible",
+    "sanitized_hard_overlap_compatible",
+    "both_result_files_present",
+    "both_hard_overlap_compatible",
+]
+
+BASE_COMPARISON_COLUMNS = [
     "seed",
     "final_fe_legacy",
     "final_fitness_legacy",
+]
+
+COMMON_COMPARISON_COLUMNS = [
+    "common_fe",
+    "legacy_fitness_at_common_fe",
+    "final_fe_difference",
+    "relative_fe_difference",
+    "fe_matched",
+    "winner_final_fitness",
+    "winner_common_fe_fitness",
+    "legacy_result_file",
+]
+
+COMPARISON_COLUMNS = [
+    *BASE_COMPARISON_COLUMNS,
     "final_fe_completed_predicted",
     "final_fitness_completed_predicted",
     "common_fe",
@@ -82,12 +115,106 @@ def winner(left_name: str, left_value: object, right_name: str, right_value: obj
     return "tie"
 
 
+def comparison_columns(candidate_prefix: str, include_sanitizer_metadata: bool) -> list[str]:
+    candidate_columns = [
+        f"final_fe_{candidate_prefix}",
+        f"final_fitness_{candidate_prefix}",
+    ]
+    common_columns = [
+        "common_fe",
+        "legacy_fitness_at_common_fe",
+        f"{candidate_prefix}_fitness_at_common_fe",
+        "final_fe_difference",
+        "relative_fe_difference",
+        "fe_matched",
+        "winner_final_fitness",
+        "winner_common_fe_fitness",
+        "legacy_result_file",
+        f"{candidate_prefix}_result_file",
+    ]
+    columns = [*BASE_COMPARISON_COLUMNS, *candidate_columns, *common_columns]
+    if include_sanitizer_metadata:
+        columns.extend(SANITIZER_COLUMNS)
+    return columns
+
+
+def parse_summary_text(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", maxsplit=1)
+        values[key.strip()] = value.strip()
+    return values
+
+
+def int_or_blank(value: str | None) -> int | str:
+    if value is None or value == "":
+        return ""
+    return int(value)
+
+
+def parse_sanitizer_summary(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    metadata: dict[str, object] = {}
+    section = ""
+    for line in path.read_text(encoding="utf-8").splitlines():
+        text = line.strip()
+        if text == "Before Repair":
+            section = "before"
+            continue
+        if text == "After Repair":
+            section = "after"
+            continue
+        if ":" not in text:
+            continue
+        key, value = [part.strip() for part in text.split(":", maxsplit=1)]
+        if key == "Repair Policy":
+            metadata["repair_policy"] = value
+        elif section == "before" and key == "Hard-Overlap Shared Variables":
+            metadata["shared_before_sanitize"] = int(value)
+        elif section == "after" and key == "Hard-Overlap Shared Variables":
+            metadata["shared_after_sanitize"] = int(value)
+        elif section == "before" and key == "Zero Effective Group Count":
+            metadata["zero_effective_groups_before"] = int(value)
+        elif section == "after" and key == "Zero Effective Group Count":
+            metadata["zero_effective_groups_after"] = int(value)
+        elif section == "after" and key == "Hard-Overlap Compatible":
+            metadata["hard_overlap_compatible_after"] = value.lower()
+    return metadata
+
+
+def count_csv_data_rows(path: Path) -> int | str:
+    if not path.exists():
+        return ""
+    with path.open(newline="", encoding="utf-8") as source:
+        return sum(1 for _ in csv.DictReader(source))
+
+
+def parse_sanitizer_metadata(seed_dir: Path) -> dict[str, object]:
+    metadata = parse_sanitizer_summary(seed_dir / "audit" / "sanitize_summary.txt")
+    loader = parse_summary_text(seed_dir / "grouping" / "sanitized_loader_summary.txt")
+    legacy_log = parse_summary_text(seed_dir / "legacy" / "cbocco_stdout.txt")
+    sanitized_log = parse_summary_text(seed_dir / "sanitized_completed_predicted" / "cbocco_stdout.txt")
+    metadata["repaired_variables_or_groups_count"] = count_csv_data_rows(seed_dir / "audit" / "sanitizer_report.csv")
+    metadata["loader_validation_errors"] = int_or_blank(loader.get("Validation Errors"))
+    metadata["legacy_hard_overlap_compatible"] = legacy_log.get("Hard-Overlap Compatible", "").lower()
+    metadata["sanitized_hard_overlap_compatible"] = sanitized_log.get("Hard-Overlap Compatible", "").lower()
+    return metadata
+
+
 def compare_seed(
     seed: int,
     legacy_result: str | Path,
     completed_result: str | Path,
     *,
     fe_tolerance: int,
+    candidate_name: str = DEFAULT_CANDIDATE_NAME,
+    candidate_prefix: str = DEFAULT_CANDIDATE_PREFIX,
+    metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
     legacy_curve = read_curve(legacy_result)
     completed_curve = read_curve(completed_result)
@@ -95,52 +222,65 @@ def compare_seed(
     final_fitness_legacy: float | str = legacy_curve[-1][1] if legacy_curve else ""
     final_fe_completed: int | str = completed_curve[-1][0] if completed_curve else ""
     final_fitness_completed: float | str = completed_curve[-1][1] if completed_curve else ""
+    row: dict[str, object]
     if not legacy_curve or not completed_curve:
-        return {
+        row = {
             "seed": seed,
             "final_fe_legacy": final_fe_legacy,
             "final_fitness_legacy": final_fitness_legacy,
-            "final_fe_completed_predicted": final_fe_completed,
-            "final_fitness_completed_predicted": final_fitness_completed,
+            f"final_fe_{candidate_prefix}": final_fe_completed,
+            f"final_fitness_{candidate_prefix}": final_fitness_completed,
             "common_fe": "",
             "legacy_fitness_at_common_fe": "",
-            "completed_predicted_fitness_at_common_fe": "",
+            f"{candidate_prefix}_fitness_at_common_fe": "",
             "final_fe_difference": "",
             "relative_fe_difference": "",
             "fe_matched": "false",
             "winner_final_fitness": "unavailable",
             "winner_common_fe_fitness": "unavailable",
             "legacy_result_file": str(legacy_result),
-            "completed_predicted_result_file": str(completed_result),
+            f"{candidate_prefix}_result_file": str(completed_result),
         }
+        if metadata is not None:
+            row.update(metadata)
+            row["both_result_files_present"] = "false"
+            row["both_hard_overlap_compatible"] = "false"
+        return row
 
     common_fe = min(final_fe_legacy, final_fe_completed)
     legacy_common = fitness_at_or_before(legacy_curve, common_fe)
     completed_common = fitness_at_or_before(completed_curve, common_fe)
     difference = final_fe_completed - final_fe_legacy
     relative = 0.0 if final_fe_legacy == 0 else difference / final_fe_legacy
-    return {
+    row = {
         "seed": seed,
         "final_fe_legacy": final_fe_legacy,
         "final_fitness_legacy": final_fitness_legacy,
-        "final_fe_completed_predicted": final_fe_completed,
-        "final_fitness_completed_predicted": final_fitness_completed,
+        f"final_fe_{candidate_prefix}": final_fe_completed,
+        f"final_fitness_{candidate_prefix}": final_fitness_completed,
         "common_fe": common_fe,
         "legacy_fitness_at_common_fe": legacy_common if legacy_common is not None else "",
-        "completed_predicted_fitness_at_common_fe": completed_common if completed_common is not None else "",
+        f"{candidate_prefix}_fitness_at_common_fe": completed_common if completed_common is not None else "",
         "final_fe_difference": difference,
         "relative_fe_difference": relative,
         "fe_matched": "true" if abs(difference) <= fe_tolerance else "false",
         "winner_final_fitness": winner(
             "legacy",
             final_fitness_legacy,
-            "completed_predicted",
+            candidate_name,
             final_fitness_completed,
         ),
-        "winner_common_fe_fitness": winner("legacy", legacy_common, "completed_predicted", completed_common),
+        "winner_common_fe_fitness": winner("legacy", legacy_common, candidate_name, completed_common),
         "legacy_result_file": str(legacy_result),
-        "completed_predicted_result_file": str(completed_result),
+        f"{candidate_prefix}_result_file": str(completed_result),
     }
+    if metadata is not None:
+        row.update(metadata)
+        row["both_result_files_present"] = "true"
+        legacy_ok = str(metadata.get("legacy_hard_overlap_compatible", "")).lower() == "true"
+        candidate_ok = str(metadata.get(f"{candidate_prefix}_hard_overlap_compatible", "")).lower() == "true"
+        row["both_hard_overlap_compatible"] = "true" if legacy_ok and candidate_ok else "false"
+    return row
 
 
 def number_values(rows: Iterable[dict[str, object]], key: str) -> list[float]:
@@ -161,7 +301,11 @@ def stdev(values: list[float]) -> float | str:
     return statistics.stdev(values) if len(values) > 1 else (0.0 if values else "")
 
 
-def summarize_pairs(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+def summarize_pairs(
+    rows: list[dict[str, object]],
+    candidate_name: str = DEFAULT_CANDIDATE_NAME,
+    candidate_prefix: str = DEFAULT_CANDIDATE_PREFIX,
+) -> list[dict[str, object]]:
     sources = [
         (
             "legacy",
@@ -170,10 +314,10 @@ def summarize_pairs(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             "final_fe_legacy",
         ),
         (
-            "completed_predicted",
-            "final_fitness_completed_predicted",
-            "completed_predicted_fitness_at_common_fe",
-            "final_fe_completed_predicted",
+            candidate_name,
+            f"final_fitness_{candidate_prefix}",
+            f"{candidate_prefix}_fitness_at_common_fe",
+            f"final_fe_{candidate_prefix}",
         ),
     ]
     summary: list[dict[str, object]] = []
@@ -206,16 +350,28 @@ def first_result_file(run_dir: Path) -> Path:
     return run_dir / "missing.result.txt"
 
 
-def compare_phase_dir(phase_dir: Path, seeds: list[int], fe_tolerance: int) -> list[dict[str, object]]:
+def compare_phase_dir(
+    phase_dir: Path,
+    seeds: list[int],
+    fe_tolerance: int,
+    candidate_dir: str = DEFAULT_CANDIDATE_NAME,
+    candidate_name: str = DEFAULT_CANDIDATE_NAME,
+    candidate_prefix: str = DEFAULT_CANDIDATE_PREFIX,
+    include_sanitizer_metadata: bool = False,
+) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for seed in seeds:
         seed_dir = phase_dir / f"seed_{seed}"
+        metadata = parse_sanitizer_metadata(seed_dir) if include_sanitizer_metadata else None
         rows.append(
             compare_seed(
                 seed,
                 first_result_file(seed_dir / "legacy"),
-                first_result_file(seed_dir / "completed_predicted"),
+                first_result_file(seed_dir / candidate_dir),
                 fe_tolerance=fe_tolerance,
+                candidate_name=candidate_name,
+                candidate_prefix=candidate_prefix,
+                metadata=metadata,
             )
         )
     return rows
@@ -229,12 +385,21 @@ def write_csv(rows: Iterable[dict[str, object]], columns: list[str], path: Path)
         writer.writerows(rows)
 
 
-def write_report(rows: list[dict[str, object]], summary: list[dict[str, object]], path: Path) -> None:
+def write_report(
+    rows: list[dict[str, object]],
+    summary: list[dict[str, object]],
+    path: Path,
+    *,
+    title: str = "Phase 7E Multi-Seed CBOCC Smoke Comparison",
+    candidate_name: str = DEFAULT_CANDIDATE_NAME,
+    candidate_prefix: str = DEFAULT_CANDIDATE_PREFIX,
+    include_sanitizer_metadata: bool = False,
+) -> None:
     lines = [
-        "# Phase 7E Multi-Seed CBOCC Smoke Comparison",
+        f"# {title}",
         "",
         "This is not a final performance benchmark.",
-        "The completed_predicted grouping uses 10D CWVIG plus singleton completion to 905D.",
+        f"The {candidate_name} grouping uses 10D CWVIG plus singleton completion to 905D.",
         "The original hard-overlap CBOG_CBD behavior is unchanged.",
         "Final-FE comparisons are not FE-matched when final FE differs.",
         "Common-FE comparison is more conservative because it uses the last logged row with FE <= common_fe.",
@@ -245,12 +410,33 @@ def write_report(rows: list[dict[str, object]], summary: list[dict[str, object]]
         "| seed | common_fe | final_fe_difference | relative_fe_difference | winner_final_fitness | winner_common_fe_fitness |",
         "| ---: | ---: | ---: | ---: | --- | --- |",
     ]
+    if include_sanitizer_metadata:
+        lines[4:4] = [
+            "The sanitized completed-predicted grouping also uses explicit demote_min_shared repair.",
+            "The sanitizer changes predicted overlap membership only to avoid zero-dimensional CMA-ES groups.",
+        ]
     for row in rows:
         lines.append(
             "| {seed} | {common_fe} | {final_fe_difference} | {relative_fe_difference} | {winner_final_fitness} | {winner_common_fe_fitness} |".format(
                 **row
             )
         )
+    if include_sanitizer_metadata:
+        lines.extend(
+            [
+                "",
+                "## Sanitizer",
+                "",
+                "| seed | zero_before | zero_after | shared_before | shared_after | repairs | loader_errors | compatible_after |",
+                "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+            ]
+        )
+        for row in rows:
+            lines.append(
+                "| {seed} | {zero_effective_groups_before} | {zero_effective_groups_after} | {shared_before_sanitize} | {shared_after_sanitize} | {repaired_variables_or_groups_count} | {loader_validation_errors} | {hard_overlap_compatible_after} |".format(
+                    **row
+                )
+            )
     failed = [str(row["seed"]) for row in rows if row.get("winner_final_fitness") == "unavailable"]
     if failed:
         lines.extend(["", f"Unavailable/failed seed pairs: {', '.join(failed)}."])
@@ -281,13 +467,35 @@ def main() -> None:
     parser.add_argument("--comparison-output", type=Path, default=Path("results/phase7e/multiseed_comparison.csv"))
     parser.add_argument("--summary-output", type=Path, default=Path("results/phase7e/multiseed_summary.csv"))
     parser.add_argument("--report", type=Path, default=Path("results/phase7e/phase7e_report.md"))
+    parser.add_argument("--candidate-dir", default=DEFAULT_CANDIDATE_NAME)
+    parser.add_argument("--candidate-name", default=DEFAULT_CANDIDATE_NAME)
+    parser.add_argument("--candidate-prefix", default=DEFAULT_CANDIDATE_PREFIX)
+    parser.add_argument("--include-sanitizer-metadata", action="store_true")
+    parser.add_argument("--report-title", default="Phase 7E Multi-Seed CBOCC Smoke Comparison")
     args = parser.parse_args()
 
-    rows = compare_phase_dir(args.phase_dir, args.seeds, args.fe_tolerance)
-    summary = summarize_pairs(rows)
-    write_csv(rows, COMPARISON_COLUMNS, args.comparison_output)
+    rows = compare_phase_dir(
+        args.phase_dir,
+        args.seeds,
+        args.fe_tolerance,
+        candidate_dir=args.candidate_dir,
+        candidate_name=args.candidate_name,
+        candidate_prefix=args.candidate_prefix,
+        include_sanitizer_metadata=args.include_sanitizer_metadata,
+    )
+    summary = summarize_pairs(rows, candidate_name=args.candidate_name, candidate_prefix=args.candidate_prefix)
+    columns = comparison_columns(args.candidate_prefix, args.include_sanitizer_metadata)
+    write_csv(rows, columns, args.comparison_output)
     write_csv(summary, SUMMARY_COLUMNS, args.summary_output)
-    write_report(rows, summary, args.report)
+    write_report(
+        rows,
+        summary,
+        args.report,
+        title=args.report_title,
+        candidate_name=args.candidate_name,
+        candidate_prefix=args.candidate_prefix,
+        include_sanitizer_metadata=args.include_sanitizer_metadata,
+    )
     print(f"wrote {args.comparison_output}")
 
 
