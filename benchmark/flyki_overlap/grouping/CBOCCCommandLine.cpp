@@ -17,6 +17,8 @@ bool needsValue(const std::string &key)
         || key == "--root"
         || key == "--require-full-coverage"
         || key == "--allow-partial-grouping"
+        || key == "--require-hard-overlap-compatible"
+        || key == "--allow-hard-overlap-incompatible"
         || key == "--completion-policy";
 }
 
@@ -38,10 +40,12 @@ std::string cboccoUsage()
     return "Usage: cbocco <func> CBCCO <seed> <maxfes> "
            "[--grouping-source legacy_by_function] [--root PATH] "
            "[--require-full-coverage true|false] [--allow-partial-grouping true|false] "
+           "[--require-hard-overlap-compatible true|false] [--allow-hard-overlap-incompatible true|false] "
            "[--completion-policy none|singletons|tail_group]\n"
            "   or: cbocco <func> CBCCO <seed> <maxfes> "
            "--grouping-source explicit_files --po PATH --oo PATH "
            "[--require-full-coverage true|false] [--allow-partial-grouping true|false] "
+           "[--require-hard-overlap-compatible true|false] [--allow-hard-overlap-incompatible true|false] "
            "[--completion-policy none|singletons|tail_group]";
 }
 
@@ -75,6 +79,10 @@ CBOCCCommandLine parseCBOCCCommandLine(const int argc, char **argv)
             options.require_full_coverage = parseBool(key, value);
         } else if (key == "--allow-partial-grouping") {
             options.allow_partial_grouping = parseBool(key, value);
+        } else if (key == "--require-hard-overlap-compatible") {
+            options.require_hard_overlap_compatible = parseBool(key, value);
+        } else if (key == "--allow-hard-overlap-incompatible") {
+            options.allow_hard_overlap_incompatible = parseBool(key, value);
         } else if (key == "--completion-policy") {
             parseCompletionPolicy(value);
             options.completion_policy = value;

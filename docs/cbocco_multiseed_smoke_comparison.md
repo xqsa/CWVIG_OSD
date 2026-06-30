@@ -81,6 +81,8 @@ The completed grouping has full 905D coverage and passes explicit loader validat
 
 This is a compatibility edge case between singleton-completed predicted overlap and the original hard-overlap optimizer. The run script records it as an unavailable seed pair instead of modifying optimizer behavior or silently rewriting the grouping.
 
+Phase 7F adds `hard_overlap_audit_cli`, `hard_overlap_sanitize_cli`, and `cbocco --require-hard-overlap-compatible true` guardrails for this exact failure mode. The compatibility layer remains pre-optimizer input handling; it does not implement `SharedVariablePolicy` or change `CBOG_CBD`.
+
 ## Common-FE Policy
 
 For completed seed pairs, the analyzer reports both:
@@ -118,4 +120,4 @@ Completed-predicted won the available seed pairs at final fitness and common-FE 
 
 ## Next Step
 
-Before making performance claims, define a fair comparison protocol that prevents zero-dimensional group creation and compares methods under matched or normalized function-evaluation budgets.
+Before making performance claims, use the Phase 7F hard-overlap audit/sanitizer where needed, then define a fair protocol that compares methods under matched or normalized function-evaluation budgets.

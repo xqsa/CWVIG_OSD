@@ -97,6 +97,19 @@ int main()
     require(!guarded.allow_partial_grouping, "allow partial grouping flag");
     require(guarded.completion_policy == "singletons", "completion policy flag");
 
+    const auto hard_overlap_flags = parse({
+        "cbocco",
+        "1",
+        "CBCCO",
+        "5",
+        "4000",
+        "--require-hard-overlap-compatible",
+        "true",
+        "--allow-hard-overlap-incompatible",
+        "false"});
+    require(hard_overlap_flags.require_hard_overlap_compatible, "require hard-overlap compatible flag");
+    require(!hard_overlap_flags.allow_hard_overlap_incompatible, "allow hard-overlap incompatible flag");
+
     requireThrowsContaining(
         []() { parse({"cbocco", "1", "CBCCO", "1"}); },
         "Usage",
@@ -123,6 +136,10 @@ int main()
         []() { parse({"cbocco", "1", "CBCCO", "1", "1000", "--completion-policy", "mystery"}); },
         "Invalid completion policy",
         "invalid completion policy");
+    requireThrowsContaining(
+        []() { parse({"cbocco", "1", "CBCCO", "1", "1000", "--require-hard-overlap-compatible", "maybe"}); },
+        "Expected true or false",
+        "invalid hard-overlap boolean");
 
     std::cout << "CBOCCCommandLineTests passed\n";
     return 0;

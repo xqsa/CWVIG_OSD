@@ -78,6 +78,8 @@ add_library(grouping_core STATIC
     grouping/GroupingCoverageAudit.h
     grouping/GroupingIO.cpp
     grouping/GroupingIO.h
+    grouping/HardOverlapCompatibilityAudit.cpp
+    grouping/HardOverlapCompatibilityAudit.h
     grouping/GroupingMetrics.cpp
     grouping/GroupingMetrics.h
     grouping/LegacyGroupingAdapter.cpp
@@ -129,6 +131,18 @@ add_executable(grouping_coverage_cli
 )
 target_link_libraries(grouping_coverage_cli PRIVATE grouping_core)
 target_compile_features(grouping_coverage_cli PRIVATE cxx_std_17)
+
+add_executable(hard_overlap_audit_cli
+    grouping/hard_overlap_audit_cli.cpp
+)
+target_link_libraries(hard_overlap_audit_cli PRIVATE grouping_core)
+target_compile_features(hard_overlap_audit_cli PRIVATE cxx_std_17)
+
+add_executable(hard_overlap_sanitize_cli
+    grouping/hard_overlap_sanitize_cli.cpp
+)
+target_link_libraries(hard_overlap_sanitize_cli PRIVATE grouping_core)
+target_compile_features(hard_overlap_sanitize_cli PRIVATE cxx_std_17)
 
 add_executable(probe_smoke_cli
     probe/probe_smoke_cli.cpp
@@ -195,6 +209,12 @@ add_executable(grouping_coverage_tests
 )
 target_link_libraries(grouping_coverage_tests PRIVATE grouping_core)
 target_compile_features(grouping_coverage_tests PRIVATE cxx_std_17)
+
+add_executable(hard_overlap_compatibility_tests
+    grouping/HardOverlapCompatibilityTests.cpp
+)
+target_link_libraries(hard_overlap_compatibility_tests PRIVATE grouping_core)
+target_compile_features(hard_overlap_compatibility_tests PRIVATE cxx_std_17)
 
 add_executable(cbocco_argument_tests
     grouping/CBOCCCommandLineTests.cpp

@@ -18,6 +18,8 @@ struct CBOCCCommandLine {
     std::filesystem::path oo_path;
     bool require_full_coverage = false;
     bool allow_partial_grouping = false;
+    bool require_hard_overlap_compatible = false;
+    bool allow_hard_overlap_incompatible = false;
     std::string completion_policy = "none";
 };
 

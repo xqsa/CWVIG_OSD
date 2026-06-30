@@ -17,6 +17,7 @@
 #include "grouping/CBOCCCommandLine.h"
 #include "grouping/CBOCCGroupingLoader.h"
 #include "grouping/GroupingCoverageAudit.h"
+#include "grouping/HardOverlapCompatibilityAudit.h"
 #include "grouping/GroupingMetrics.h"
 
 using namespace std;
@@ -114,6 +115,28 @@ void enforceCoveragePolicy(
 		<< ". The run is allowed only because --allow-partial-grouping true was set.\n";
 }
 
+void enforceHardOverlapPolicy(
+	const flyki::grouping::CBOCCCommandLine& options,
+	const flyki::grouping::HardOverlapCompatibilityAudit& audit) {
+	if (audit.compatible) {
+		return;
+	}
+
+	const auto problem = "Grouping is hard-overlap incompatible: zero_effective_group_count="
+		+ std::to_string(audit.zero_effective_group_count);
+	if (options.allow_hard_overlap_incompatible) {
+		std::cerr << "WARNING: " << problem
+			<< ". The run is allowed only because --allow-hard-overlap-incompatible true was set.\n";
+		return;
+	}
+	if (options.require_hard_overlap_compatible) {
+		throw std::runtime_error(problem
+			+ ". Run hard_overlap_sanitize_cli or pass --allow-hard-overlap-incompatible true for debugging.");
+	}
+	std::cerr << "WARNING: " << problem
+		<< ". The optimizer may abort because --require-hard-overlap-compatible true was not set.\n";
+}
+
 void printStartupLog(
 	const flyki::grouping::CBOCCCommandLine& options,
 	const flyki::grouping::LegacyGroupingView& original_grouping,
@@ -121,6 +144,7 @@ void printStartupLog(
 	const int expected_dimension,
 	const flyki::grouping::GroupingCoverageAudit& original_audit,
 	const flyki::grouping::GroupingCoverageAudit& audit,
+	const flyki::grouping::HardOverlapCompatibilityAudit& hard_overlap_audit,
 	const flyki::grouping::CompletionPolicy completion_policy) {
 	const auto po_path = options.grouping_source == "explicit_files" ? options.po_path : legacyPath(options, "po.txt");
 	const auto oo_path = options.grouping_source == "explicit_files" ? options.oo_path : legacyPath(options, "oo.txt");
@@ -140,6 +164,8 @@ void printStartupLog(
 		<< "Completion Policy: " << flyki::grouping::completionPolicyName(completion_policy) << '\n'
 		<< "Partial Grouping Allowed: " << (options.allow_partial_grouping ? "true" : "false") << '\n'
 		<< "Require Full Coverage: " << (options.require_full_coverage ? "true" : "false") << '\n'
+		<< "Require Hard-Overlap Compatible: " << (options.require_hard_overlap_compatible ? "true" : "false") << '\n'
+		<< "Allow Hard-Overlap Incompatible: " << (options.allow_hard_overlap_incompatible ? "true" : "false") << '\n'
 		<< "Number Of Groups: " << grouping.number_of_groups << '\n'
 		<< "Grouping Inferred Dimension: " << grouping.dimension << '\n'
 		<< "Covered Unique Variables: " << audit.covered_unique_variables << '\n'
@@ -149,6 +175,8 @@ void printStartupLog(
 		<< "Coverage Ratio: " << audit.coverage_ratio << '\n'
 		<< "Full Coverage: " << (audit.full_coverage ? "true" : "false") << '\n'
 		<< "Shared Variables: " << flyki::grouping::extractSharedVariablesFromOo(grouping.overiablesRedandunt).size() << '\n'
+		<< "Zero Effective Group Count: " << hard_overlap_audit.zero_effective_group_count << '\n'
+		<< "Hard-Overlap Compatible: " << (hard_overlap_audit.compatible ? "true" : "false") << '\n'
 		<< "Validation Errors: " << validation_errors.size() << '\n';
 }
 
@@ -171,8 +199,10 @@ int main(int argc, char* argv[]) {
 			expected_dimension,
 			completion_policy);
 		const auto audit = flyki::grouping::auditGroupingCoverage(grouping, expected_dimension);
-		printStartupLog(options, original_grouping, grouping, expected_dimension, original_audit, audit, completion_policy);
+		const auto hard_overlap_audit = flyki::grouping::auditHardOverlapCompatibility(grouping, expected_dimension);
+		printStartupLog(options, original_grouping, grouping, expected_dimension, original_audit, audit, hard_overlap_audit, completion_policy);
 		enforceCoveragePolicy(options, audit);
+		enforceHardOverlapPolicy(options, hard_overlap_audit);
 
 		if (options.method == "CBCCO") {
 			std::unique_ptr<Benchmarks> fp(generateFuncObj(options.func));

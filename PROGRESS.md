@@ -1648,3 +1648,84 @@
   - Seed 3 completed-predicted failed before producing a result file.
 - 推荐下一目标：
   - Define a fair, matched-FE protocol and a grouping sanitization or explicit policy for groups that become zero-dimensional after original shared-variable removal, before introducing any shared-variable-aware update logic.
+
+## 2026-06-30 - Phase 7F Hard-Overlap Compatibility Audit And Sanitizer
+
+- 状态：done locally; added pre-optimizer hard-overlap audit/sanitizer and strict explicit guardrails without implementing `SharedVariablePolicy` or changing `CBOG_CBD`, `CMAESO`, benchmark functions, or legacy CBCCO behavior.
+- 修改文件：
+  - `benchmark/flyki_overlap/grouping/HardOverlapCompatibilityAudit.h`
+  - `benchmark/flyki_overlap/grouping/HardOverlapCompatibilityAudit.cpp`
+  - `benchmark/flyki_overlap/grouping/hard_overlap_audit_cli.cpp`
+  - `benchmark/flyki_overlap/grouping/hard_overlap_sanitize_cli.cpp`
+  - `benchmark/flyki_overlap/grouping/HardOverlapCompatibilityTests.cpp`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLine.h`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLine.cpp`
+  - `benchmark/flyki_overlap/grouping/CBOCCCommandLineTests.cpp`
+  - `benchmark/flyki_overlap/CBOCC.cpp`
+  - `benchmark/flyki_overlap/CMakeLists.txt`
+  - `scripts/run_hard_overlap_sanitizer_smoke.ps1`
+  - `docs/hard_overlap_compatibility.md`
+  - `docs/cbocco_explicit_grouping.md`
+  - `docs/cbocco_multiseed_smoke_comparison.md`
+  - `PROGRESS.md`
+- TDD red commands：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; cmake --build build\flyki_phase7e --target hard_overlap_compatibility_tests --config Release`
+  - Expected failure observed before implementation: missing `grouping/HardOverlapCompatibilityAudit.h`.
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; cmake --build build\flyki_phase7e --target cbocco_argument_tests --config Release`
+  - Expected failure observed before implementation: `CBOCCCommandLine` had no `require_hard_overlap_compatible` or `allow_hard_overlap_incompatible` fields.
+- 新增功能：
+  - `auditHardOverlapCompatibility()` computes original group sizes, effective group sizes after original hard-overlap shared-variable removal, zero-effective group count/indices, min/max/mean effective group size, and compatibility flag.
+  - `hard_overlap_audit_cli` supports `--po`, `--oo`, `--expected-dimension`, `--print-summary`, and `--output-report`.
+  - `hard_overlap_sanitize_cli` supports `--repair-policy none|drop_empty_groups|demote_min_shared|merge_empty_to_nearest`, `--output-po`, `--output-oo`, `--output-report`, and `--print-summary`.
+  - `demote_min_shared` deterministically selects the smallest shared variable in the current first zero-effective group and removes that variable from all `oo` rows, matching the current global `sharedvar_group_pos` behavior in `CBOG_CBD`.
+  - `cbocco` now logs `Zero Effective Group Count` and `Hard-Overlap Compatible` before constructing `CBOG_CBD`.
+  - New `cbocco` flags: `--require-hard-overlap-compatible true|false` and `--allow-hard-overlap-incompatible true|false`.
+- 合成 CLI smoke command：
+  - Created a temporary 3D grouping where group `{1}` becomes zero-effective when variable `1` is shared.
+  - Ran `build\flyki_phase7e\hard_overlap_audit_cli.exe --po <tmp>\po.txt --oo <tmp>\oo.txt --expected-dimension 3 --print-summary --output-report <tmp>\audit.csv`.
+  - Ran `build\flyki_phase7e\hard_overlap_sanitize_cli.exe --po <tmp>\po.txt --oo <tmp>\oo.txt --expected-dimension 3 --repair-policy demote_min_shared --output-po <tmp>\repaired_po.txt --output-oo <tmp>\repaired_oo.txt --output-report <tmp>\repair.csv --print-summary`.
+  - Ran `build\flyki_phase7e\grouping_source_cli.exe --source explicit_files --po <tmp>\repaired_po.txt --oo <tmp>\repaired_oo.txt --print-summary`.
+  - Result: before repair `Zero Effective Group Count: 1`; after repair `Zero Effective Group Count: 0`; loader `Validation Errors: 0`.
+- Phase 7F smoke command：
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; .\scripts\run_hard_overlap_sanitizer_smoke.ps1 -CMakeExe "$env:USERPROFILE\scoop\shims\cmake.exe"`
+  - The script configured `build/flyki_phase7f`, built `cbocco`, `cwvig_grouping_pipeline_cli`, `grouping_coverage_cli`, `grouping_source_cli`, `hard_overlap_audit_cli`, and `hard_overlap_sanitize_cli`.
+  - It regenerated Flyki F1 seed `3` capped 10D CWVIG grouping, completed it to 905D with singleton completion, audited hard-overlap compatibility, verified strict incompatible rejection, repaired with `demote_min_shared`, validated repaired `po/oo`, and ran strict repaired `cbocco`.
+- Phase 7F result files：
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\completed_hard_overlap_audit.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\completed_hard_overlap_audit.csv`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\strict_incompatible\cbocco_stdout.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\strict_incompatible\cbocco_stderr.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\strict_incompatible\exit_code.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\sanitize_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\repair_actions.csv`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\repaired_groups.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\repaired_overlap.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\repaired_hard_overlap_audit.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\repaired_hard_overlap_audit.csv`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\repaired_loader_summary.txt`
+  - `E:\CWVIG_OSD\results\phase7f_hard_overlap_sanitizer\repaired_cbocco\1.3.100.CBOG-CBD.result.txt`
+- Phase 7F observations：
+  - Before repair: group count `904`, shared variables `5`, zero-effective group count `3`, zero-effective indices `2 4 5`, min effective size `0`, max effective size `3`, mean effective size `0.998894`, compatible `false`.
+  - Strict incompatible `cbocco` exited `1` before optimizer construction and reported `Grouping is hard-overlap incompatible: zero_effective_group_count=3`.
+  - `demote_min_shared` actions: group `2` variable `0` removed from `5` overlap rows; group `4` variable `1` removed from `3` overlap rows.
+  - After repair: shared variables `3`, zero-effective group count `0`, min effective size `1`, max effective size `5`, mean effective size `1.00774`, compatible `true`.
+  - Repaired loader summary: number of groups `904`, dimension `905`, unique variables `905`, shared variables `3`, validation errors `0`.
+  - Repaired strict `cbocco` exit code `0`; latest result file final logged row `182200,1.60771e+10`.
+  - `errcmaes.err` in the repaired run contains CMA-ES equal-function-value warnings, not `No valid dimension N` abort.
+- 后续验证命令：
+  - `build\flyki_phase7f\hard_overlap_compatibility_tests.exe` -> `HardOverlapCompatibilityTests passed`
+  - `build\flyki_phase7e\cbocco_argument_tests.exe` -> `CBOCCCommandLineTests passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest -q` -> `12 passed`
+  - `C:\Users\83718\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe experiments\grouping_accuracy.py` -> printed grouping JSON with `evaluations=192`, `shared_variables=[1]`, and no error.
+  - `$env:PATH="$env:USERPROFILE\scoop\apps\gcc\15.2.0\bin;$env:USERPROFILE\scoop\apps\ninja\current;$env:USERPROFILE\scoop\shims;$env:PATH"; cmake --build build\flyki_phase7f --target hard_overlap_compatibility_tests --config Release; build\flyki_phase7f\hard_overlap_compatibility_tests.exe; cmake --build build\flyki_phase7f --target cbocco_argument_tests --config Release; build\flyki_phase7f\cbocco_argument_tests.exe; cmake --build build\flyki_phase7f --target hard_overlap_audit_cli --config Release; cmake --build build\flyki_phase7f --target hard_overlap_sanitize_cli --config Release; cmake --build build\flyki_phase7f --target grouping_source_cli --config Release; cmake --build build\flyki_phase7f --target cbocco --config Release` -> both C++ tests passed and all listed targets built or reported `ninja: no work to do.`
+  - `git diff -- benchmark\flyki_overlap\CBOG_CBD.cpp benchmark\flyki_overlap\CMAESO.cpp benchmark\flyki_overlap\F1.cpp benchmark\flyki_overlap\Benchmarks.cpp` -> no diff.
+  - `git diff --check` -> no whitespace errors; Git warned that `benchmark/flyki_overlap/CBOCC.cpp` CRLF will be replaced by LF when touched.
+- 关键限制：
+  - This is a pre-optimizer compatibility layer only.
+  - No `SharedVariablePolicy` was implemented.
+  - `CBOG_CBD` hard-overlap removal logic remains unchanged.
+  - `CMAESO` algorithm logic and benchmark functions remain unchanged.
+  - Sanitization never happens silently inside `cbocco`; callers must use `hard_overlap_sanitize_cli` or another explicit path.
+  - Repaired seed 3 smoke is not an optimization improvement claim and is not FE-matched with previous Phase 7E comparisons.
+- 推荐下一目标：
+  - Add matched-FE or FE-normalized comparison scripts that use hard-overlap-compatible groupings, then separately design the real shared-variable-aware update policy.

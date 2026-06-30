@@ -61,6 +61,15 @@ Default behavior is conservative:
 - `--completion-policy singletons` or `--completion-policy tail_group` completes missing variables before the coverage guard.
 - out-of-range variables are always rejected.
 
+Phase 7F adds hard-overlap compatibility guardrails for full-coverage files whose groups may become zero-dimensional after original shared-variable removal:
+
+```text
+--require-hard-overlap-compatible true|false
+--allow-hard-overlap-incompatible true|false
+```
+
+Use `hard_overlap_audit_cli` before optimization to inspect `Zero Effective Group Count`. Use `hard_overlap_sanitize_cli` explicitly when a predicted grouping needs repair; `cbocco` does not silently sanitize inputs.
+
 Strict legacy smoke:
 
 ```powershell
@@ -123,6 +132,8 @@ cbocco 1 CBCCO 1 1000 --grouping-source explicit_files --po results/phase7a_pred
 - completion policy
 - whether partial grouping is allowed
 - whether full coverage is required
+- whether hard-overlap compatibility is required
+- whether hard-overlap incompatibility is explicitly allowed
 - number of groups
 - applied grouping dimension
 - covered unique variables
@@ -132,6 +143,8 @@ cbocco 1 CBCCO 1 1000 --grouping-source explicit_files --po results/phase7a_pred
 - coverage ratio
 - full coverage true/false
 - shared variables
+- zero effective group count
+- hard-overlap compatible true/false
 - validation errors
 
 ## What Changed
@@ -144,6 +157,7 @@ cbocco 1 CBCCO 1 1000 --grouping-source explicit_files --po results/phase7a_pred
 - `sharedvar_group_pos`
 
 Coverage audit and completion run before solver construction. They do not alter CMA-ES sampling, optimizer state updates, or the hard-overlap logic inside `CBOG_CBD`.
+Hard-overlap compatibility audit also runs before solver construction. It only reports or rejects incompatible grouping when strict flags request it.
 
 ## What Did Not Change
 
